@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MyScheduler — Owner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0F172A;
+    --card: #1E2938;
+    --card2: #162032;
+    --border: #334155;
+    --text: #F1F5F9;
+    --muted: #94A3B8;
+    --accent: #6366F1;
+    --accent2: #818CF8;
+    --green: #22C55E;
+    --yellow: #F59E0B;
+    --red: #EF4444;
+    --orange: #F97316;
+    --blue: #38BDF8;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── PASSWORD SCREEN ── */
+  #password-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    background-image: radial-gradient(ellipse at 30% 50%, rgba(99,102,241,0.08) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, rgba(129,140,248,0.05) 0%, transparent 50%);
+  }
+
+  .password-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+  }
+
+  .password-card .logo {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 16px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-bottom: 20px;
+  }
+
+  .password-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .password-card p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  .password-card input {
+    width: 100%; padding: 12px 16px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 15px;
+    outline: none; margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .password-card input:focus { border-color: var(--accent); }
+
+  .password-card .error {
+    color: var(--red); font-size: 13px; margin-bottom: 12px;
+    display: none; background: rgba(239,68,68,0.1);
+    padding: 8px 12px; border-radius: 8px;
+  }
+
+  .btn-primary {
+    width: 100%; padding: 12px; border: none;
+    background: var(--accent); color: #fff;
+    font-size: 15px; font-weight: 600;
+    border-radius: 10px; cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* ── MAIN LAYOUT ── */
+  #app { display: none; min-height: 100vh; }
+
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .header-title { font-size: 16px; font-weight: 700; }
+  .header-subtitle { font-size: 12px; color: var(--muted); }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .btn-icon {
+    padding: 8px 14px; border: 1px solid var(--border);
+    background: transparent; color: var(--text);
+    font-size: 13px; font-weight: 500;
+    border-radius: 8px; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+
+  .btn-icon:hover { background: var(--card2); border-color: var(--accent); }
+
+  .btn-requests {
+    position: relative;
+    padding: 8px 14px; border: 1px solid var(--border);
+    background: transparent; color: var(--text);
+    font-size: 13px; font-weight: 500;
+    border-radius: 8px; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+
+  .btn-requests:hover { background: var(--card2); border-color: var(--accent); }
+
+  .badge {
+    position: absolute; top: -6px; right: -6px;
+    background: var(--red); color: #fff;
+    font-size: 11px; font-weight: 700;
+    width: 18px; height: 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── THREE PANEL ── */
+  .panels {
+    display: grid;
+    grid-template-columns: 320px 1fr 360px;
+    height: calc(100vh - 64px);
+  }
+
+  .panel {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .panel:last-child { border-right: none; }
+
+  .panel-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .panel-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+  /* ── CALENDAR ── */
+  .calendar { padding: 16px; }
+
+  .cal-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .cal-month { font-size: 15px; font-weight: 600; }
+
+  .cal-btn {
+    width: 30px; height: 30px; border: 1px solid var(--border);
+    background: var(--card); border-radius: 8px;
+    color: var(--text); cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .cal-btn:hover { border-color: var(--accent); background: var(--card2); }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+
+  .cal-dow {
+    text-align: center; font-size: 11px;
+    font-weight: 600; color: var(--muted);
+    padding: 6px 0; text-transform: uppercase;
+  }
+
+  .cal-day {
+    aspect-ratio: 1; display: flex; align-items: center;
+    justify-content: center; font-size: 13px;
+    border-radius: 8px; cursor: pointer;
+    position: relative; transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .cal-day:hover:not(.empty):not(.past) { background: var(--card); border-color: var(--border); }
+  .cal-day.today { background: rgba(99,102,241,0.15); border-color: var(--accent); color: var(--accent2); font-weight: 600; }
+  .cal-day.selected { background: var(--accent); color: #fff; font-weight: 600; border-color: var(--accent); }
+  .cal-day.past { color: var(--muted); cursor: default; opacity: 0.5; }
+  .cal-day.empty { cursor: default; }
+
+  .cal-day .dot {
+    position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent2);
+  }
+
+  /* ── SCHEDULE PANEL ── */
+  .add-btn {
+    padding: 8px 14px; background: var(--accent);
+    border: none; color: #fff; font-size: 13px;
+    font-weight: 600; border-radius: 8px; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+
+  .add-btn:hover { background: var(--accent2); }
+
+  .schedule-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+  .slot-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px; padding: 14px;
+    transition: all 0.2s;
+  }
+
+  .slot-card:hover { border-color: var(--accent); transform: translateX(2px); }
+  .slot-card.status-completed { border-left-color: var(--green); opacity: 0.7; }
+  .slot-card.status-cancelled { border-left-color: var(--red); opacity: 0.6; }
+  .slot-card.status-rescheduled { border-left-color: var(--yellow); }
+
+  .slot-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .slot-title { font-size: 14px; font-weight: 600; }
+  .slot-time { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
+
+  .slot-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+
+  .badge-cat {
+    font-size: 11px; font-weight: 500;
+    padding: 2px 8px; border-radius: 99px;
+    background: rgba(99,102,241,0.15); color: var(--accent2);
+    border: 1px solid rgba(99,102,241,0.3);
+  }
+
+  .badge-status {
+    font-size: 11px; font-weight: 500;
+    padding: 2px 8px; border-radius: 99px;
+  }
+
+  .status-upcoming { background: rgba(56,189,248,0.1); color: var(--blue); border: 1px solid rgba(56,189,248,0.2); }
+  .status-completed { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .status-cancelled { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .status-rescheduled { background: rgba(245,158,11,0.1); color: var(--yellow); border: 1px solid rgba(245,158,11,0.2); }
+
+  .slot-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .slot-btn {
+    padding: 5px 10px; font-size: 12px; font-weight: 500;
+    border-radius: 6px; cursor: pointer; border: 1px solid var(--border);
+    background: transparent; color: var(--text); transition: all 0.15s;
+  }
+
+  .slot-btn:hover { background: var(--card2); }
+  .slot-btn.complete { border-color: var(--green); color: var(--green); }
+  .slot-btn.complete:hover { background: rgba(34,197,94,0.1); }
+  .slot-btn.cancel { border-color: var(--red); color: var(--red); }
+  .slot-btn.cancel:hover { background: rgba(239,68,68,0.1); }
+  .slot-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── STATS ── */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; padding: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px; text-align: center;
+  }
+
+  .stat-val { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── CHAT PANEL ── */
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    height: calc(100% - 130px);
+  }
+
+  .msg {
+    max-width: 85%; padding: 10px 14px;
+    border-radius: 14px; font-size: 14px; line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .msg.user {
+    align-self: flex-end;
+    background: var(--accent); color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+
+  .msg.ai {
+    align-self: flex-start;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg.typing {
+    align-self: flex-start;
+    background: var(--card); border: 1px solid var(--border);
+    border-bottom-left-radius: 4px; padding: 14px;
+  }
+
+  .typing-dots { display: flex; gap: 4px; }
+  .typing-dots span {
+    width: 6px; height: 6px; background: var(--muted);
+    border-radius: 50%; animation: bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  .chat-input-area {
+    padding: 12px 16px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: flex-end;
+    background: var(--bg);
+  }
+
+  .chat-input {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    color: var(--text); font-size: 14px; resize: none;
+    font-family: inherit; max-height: 100px; outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus { border-color: var(--accent); }
+
+  .chat-send {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--accent); border: none; color: #fff;
+    font-size: 16px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .chat-send:hover { background: var(--accent2); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500; backdrop-filter: blur(4px);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px;
+    width: 480px; max-width: 95vw; max-height: 90vh;
+    overflow-y: auto; transform: translateY(20px);
+    transition: transform 0.2s;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%; padding: 10px 14px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px;
+    font-family: inherit; outline: none; transition: border-color 0.2s;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus { border-color: var(--accent); }
+
+  .form-group select option { background: var(--card); }
+  .form-group textarea { min-height: 80px; resize: vertical; }
+
+  .word-count { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; }
+  .word-count.warn { color: var(--red); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  .btn-secondary {
+    padding: 10px 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--text);
+    font-size: 14px; font-weight: 500;
+    border-radius: 8px; cursor: pointer; transition: all 0.2s;
+  }
+
+  .btn-secondary:hover { background: var(--card2); }
+
+  .btn-submit {
+    padding: 10px 20px; background: var(--accent); border: none;
+    color: #fff; font-size: 14px; font-weight: 600;
+    border-radius: 8px; cursor: pointer; transition: all 0.2s;
+  }
+
+  .btn-submit:hover:not(:disabled) { background: var(--accent2); }
+  .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── DRAWER ── */
+  .drawer-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 400; opacity: 0; pointer-events: none;
+    transition: opacity 0.25s; backdrop-filter: blur(2px);
+  }
+
+  .drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+  .drawer {
+    position: fixed; right: 0; top: 0; bottom: 0;
+    width: 420px; max-width: 95vw;
+    background: var(--card); border-left: 1px solid var(--border);
+    transform: translateX(100%); transition: transform 0.3s ease;
+    z-index: 401; overflow-y: auto;
+  }
+
+  .drawer-overlay.open .drawer { transform: translateX(0); }
+
+  .drawer-header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; background: var(--card); z-index: 10;
+  }
+
+  .drawer-title { font-size: 16px; font-weight: 700; }
+
+  .close-btn {
+    width: 32px; height: 32px; border: 1px solid var(--border);
+    background: transparent; color: var(--text); border-radius: 8px;
+    cursor: pointer; font-size: 18px; display: flex;
+    align-items: center; justify-content: center; transition: all 0.2s;
+  }
+
+  .close-btn:hover { background: var(--card2); }
+
+  .request-card {
+    margin: 12px; border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    background: var(--bg);
+  }
+
+  .request-card .req-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .request-card .req-email { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .request-card .req-time { font-size: 12px; font-family: var(--mono); color: var(--blue); margin-bottom: 8px; }
+  .request-card .req-desc { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .request-card .req-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .req-btn {
+    padding: 6px 12px; font-size: 12px; font-weight: 500;
+    border-radius: 6px; cursor: pointer; border: none; transition: all 0.2s;
+  }
+
+  .req-btn.accept { background: rgba(34,197,94,0.15); color: var(--green); }
+  .req-btn.accept:hover { background: rgba(34,197,94,0.25); }
+  .req-btn.remarks { background: rgba(56,189,248,0.1); color: var(--blue); }
+  .req-btn.remarks:hover { background: rgba(56,189,248,0.2); }
+  .req-btn.reschedule { background: rgba(245,158,11,0.1); color: var(--yellow); }
+  .req-btn.reschedule:hover { background: rgba(245,158,11,0.2); }
+  .req-btn.decline { background: rgba(239,68,68,0.1); color: var(--red); }
+  .req-btn.decline:hover { background: rgba(239,68,68,0.2); }
+
+  .conflict-warn {
+    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 8px; padding: 8px 12px;
+    font-size: 12px; color: var(--yellow); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* ── CANCELLATION HISTORY ── */
+  .cancel-history { padding: 12px; border-top: 1px solid var(--border); }
+
+  .cancel-toggle {
+    width: 100%; padding: 10px; background: transparent;
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 13px; cursor: pointer;
+    text-align: left; transition: all 0.2s;
+  }
+
+  .cancel-toggle:hover { background: var(--card); }
+
+  .cancel-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+  .cancel-item {
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 3px solid var(--red); border-radius: 8px;
+    padding: 10px 12px; font-size: 12px;
+  }
+
+  /* ── EMPTY & LOADING ── */
+  .empty {
+    padding: 40px 20px; text-align: center;
+    color: var(--muted); font-size: 14px;
+  }
+
+  .empty .icon { font-size: 32px; margin-bottom: 10px; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    padding: 12px 20px; border-radius: 10px;
+    font-size: 14px; font-weight: 500; z-index: 9999;
+    transform: translateY(20px); opacity: 0;
+    transition: all 0.3s;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: rgba(34,197,94,0.9); color: #fff; }
+  .toast.error { background: rgba(239,68,68,0.9); color: #fff; }
+  .toast.info { background: rgba(99,102,241,0.9); color: #fff; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 768px) {
+    .panels {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr auto;
+      height: auto;
+      min-height: calc(100vh - 64px);
+    }
+
+    .panel { border-right: none; border-bottom: 1px solid var(--border); overflow-y: visible; }
+    .panel:last-child { border-bottom: none; }
+    .chat-messages { height: 300px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD SCREEN -->
+<div id="password-screen">
+  <div class="password-card">
+    <div class="logo">📅</div>
+    <h1>MyScheduler</h1>
+    <p>Owner dashboard — enter your password to continue</p>
+    <input type="password" id="pw-input" placeholder="Password" />
+    <div class="error" id="pw-error">Incorrect password. Try again.</div>
+    <button class="btn-primary" onclick="checkPassword()">Sign In</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <div class="header-logo">📅</div>
+      <div>
+        <div class="header-title">MyScheduler</div>
+        <div class="header-subtitle" id="today-label">Today</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-icon" onclick="copyBookingLink()">🔗 Copy Booking Link</button>
+      <button class="btn-requests" onclick="openDrawer()">
+        📥 Requests
+        <span class="badge" id="req-badge" style="display:none">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- PANELS -->
+  <div class="panels">
+
+    <!-- PANEL 1: CALENDAR -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Calendar</span>
+      </div>
+      <div class="calendar">
+        <div class="cal-nav">
+          <button class="cal-btn" onclick="changeMonth(-1)">‹</button>
+          <div class="cal-month" id="cal-month-label"></div>
+          <button class="cal-btn" onclick="changeMonth(1)">›</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+
+    <!-- PANEL 2: SCHEDULE -->
+    <div class="panel" style="display:flex; flex-direction:column;">
+      <div class="panel-header">
+        <span class="panel-title" id="schedule-date-label">Select a date</span>
+        <button class="add-btn" onclick="openAddModal()">＋ Add to Schedule</button>
+      </div>
+      <div class="schedule-list" id="schedule-list">
+        <div class="empty"><div class="icon">📆</div>Select a date to view schedule</div>
+      </div>
+      <div id="stats-area"></div>
+    </div>
+
+    <!-- PANEL 3: CHAT -->
+    <div class="panel" style="display:flex; flex-direction:column;">
+      <div class="panel-header">
+        <span class="panel-title">AI Assistant</span>
+        <span style="font-size:11px;color:var(--muted)">Gemini 2.0 Flash</span>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="msg ai">👋 Hi! I'm your scheduling assistant. Ask me things like:
+
+• "What do I have today?"
+• "When am I free this week?"
+• "Book a meeting at 3pm tomorrow"
+• "Cancel my 10am meeting"
+• "Show me pending requests"</div>
+      </div>
+      <div class="chat-input-area">
+        <textarea class="chat-input" id="chat-input" rows="1" placeholder="Ask anything about your schedule…" onkeydown="chatKeydown(event)"></textarea>
+        <button class="chat-send" onclick="sendChat()">➤</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADD/EDIT SLOT MODAL -->
+<div class="modal-overlay" id="slot-modal">
+  <div class="modal">
+    <h2 id="modal-title">Add to Schedule</h2>
+    <input type="hidden" id="edit-id" />
+    <div class="form-group">
+      <label>Category</label>
+      <select id="slot-category">
+        <option>Meeting</option>
+        <option>Brainstorming</option>
+        <option>Event Participation</option>
+        <option>Learnings</option>
+        <option>Others</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="slot-title" placeholder="e.g. Sprint planning call" />
+    </div>
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" id="slot-date" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Start Time (IST)</label>
+        <input type="time" id="slot-start" min="05:00" max="23:00" />
+      </div>
+      <div class="form-group">
+        <label>End Time (IST)</label>
+        <input type="time" id="slot-end" min="05:00" max="23:00" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description <span style="color:var(--muted)">(min 25 words)</span></label>
+      <textarea id="slot-desc" placeholder="Describe the purpose of this slot…" oninput="updateWordCount()"></textarea>
+      <div class="word-count" id="word-count">0 / 25 words</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('slot-modal')">Cancel</button>
+      <button class="btn-submit" id="slot-submit" onclick="saveSlot()" disabled>Save Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESCHEDULE MODAL -->
+<div class="modal-overlay" id="reschedule-modal">
+  <div class="modal">
+    <h2>Reschedule Slot</h2>
+    <input type="hidden" id="reschedule-id" />
+    <div class="form-group">
+      <label>New Date</label>
+      <input type="date" id="reschedule-date" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>New Start Time</label>
+        <input type="time" id="reschedule-start" />
+      </div>
+      <div class="form-group">
+        <label>New End Time</label>
+        <input type="time" id="reschedule-end" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('reschedule-modal')">Cancel</button>
+      <button class="btn-submit" onclick="confirmReschedule()">Reschedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- REQUESTS DRAWER -->
+<div class="drawer-overlay" id="requests-drawer">
+  <div class="drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">Booking Requests</div>
+      <button class="close-btn" onclick="closeDrawer()">×</button>
+    </div>
+    <div id="requests-list"></div>
+  </div>
+</div>
+
+<!-- REMARKS MODAL -->
+<div class="modal-overlay" id="remarks-modal">
+  <div class="modal">
+    <h2 id="remarks-title">Add Remarks</h2>
+    <input type="hidden" id="remarks-req-id" />
+    <input type="hidden" id="remarks-action" />
+    <input type="hidden" id="remarks-visitor-email" />
+    <div class="form-group">
+      <label id="remarks-label">Remarks</label>
+      <textarea id="remarks-text" placeholder="Type your message…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('remarks-modal')">Cancel</button>
+      <button class="btn-submit" onclick="submitRemarks()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──
+const SUPABASE_URL = 'https://gyznhncbwoopkzxzhwpt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5em5obmNid29vcGt6eHpod3B0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NzQ2MjAsImV4cCI6MjA5NzE1MDYyMH0.rDCBabevIA_WzAOnj03wzpUsjO73IEc8vc9GAyQX-V4';
+const OWNER_PASSWORD = 'Usharama@7505';
+const GEMINI_PROXY = '/api/gemini';
+
+// ── STATE ──
+let selectedDate = null;
+let calYear, calMonth;
+let chatHistory = [];
+let scheduleCache = {};
+
+// ── UTILS ──
+const sb = async (path, opts = {}) => {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation', ...opts.headers },
+    ...opts
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.message || 'DB error'); }
+  return r.json();
+};
+
+function toIST(dateStr, timeStr) {
+  return `${dateStr}T${timeStr}:00+05:30`;
+}
+
+function nowIST() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+}
+
+function formatIST(date) {
+  return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── PASSWORD ──
+function checkPassword() {
+  const val = document.getElementById('pw-input').value;
+  if (val === OWNER_PASSWORD) {
+    sessionStorage.setItem('ms_auth', '1');
+    document.getElementById('password-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+  }
+}
+
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPassword(); });
+
+// Check session
+if (sessionStorage.getItem('ms_auth') === '1') {
+  document.getElementById('password-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  initApp();
+}
+
+// ── INIT ──
+function initApp() {
+  const now = nowIST();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+  const label = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('today-label').textContent = label;
+  renderCalendar();
+  loadStats();
+  loadPendingCount();
+  // Auto-select today
+  const today = now.toISOString().split('T')[0];
+  selectDate(today);
+}
+
+// ── CALENDAR ──
+function renderCalendar() {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-month-label').textContent = `${months[calMonth]} ${calYear}`;
+
+  const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = days.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const total = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = nowIST();
+  const todayStr = today.toISOString().split('T')[0];
+
+  for (let i = 0; i < first; i++) grid.innerHTML += `<div class="cal-day empty"></div>`;
+
+  for (let d = 1; d <= total; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast = dateStr < todayStr;
+    const isToday = dateStr === todayStr;
+    const isSelected = dateStr === selectedDate;
+    const hasDot = scheduleCache[dateStr];
+    grid.innerHTML += `<div class="cal-day ${isPast?'past':''} ${isToday&&!isSelected?'today':''} ${isSelected?'selected':''}" ${!isPast?`onclick="selectDate('${dateStr}')"`:''}>
+      ${d}${hasDot?'<span class="dot"></span>':''}
+    </div>`;
+  }
+}
+
+function changeMonth(dir) {
+  calMonth += dir;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+
+async function selectDate(dateStr) {
+  selectedDate = dateStr;
+  renderCalendar();
+  const label = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('schedule-date-label').textContent = label;
+  document.getElementById('slot-date').value = dateStr;
+  await loadSchedule(dateStr);
+}
+
+// ── SCHEDULE ──
+async function loadSchedule(date) {
+  const list = document.getElementById('schedule-list');
+  list.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const rows = await sb(`schedules?date=eq.${date}&order=start_time.asc`);
+    scheduleCache[date] = rows.length > 0;
+    renderCalendar();
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty"><div class="icon">✨</div>No slots for this day</div>';
+      return;
+    }
+    list.innerHTML = rows.map(s => slotHTML(s)).join('');
+  } catch (e) {
+    list.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+function slotHTML(s) {
+  const isDone = s.status === 'completed' || s.status === 'cancelled';
+  return `<div class="slot-card status-${s.status}" id="slot-${s.id}">
+    <div class="slot-top">
+      <div class="slot-title">${s.title}</div>
+    </div>
+    <div class="slot-time">🕐 ${s.start_time.slice(0,5)} – ${s.end_time.slice(0,5)} IST</div>
+    <div class="slot-badges">
+      <span class="badge-cat">${s.category}</span>
+      <span class="badge-status ${s.status === 'upcoming' ? 'status-upcoming' : s.status === 'completed' ? 'status-completed' : s.status === 'cancelled' ? 'status-cancelled' : 'status-rescheduled'}">${s.status}</span>
+    </div>
+    <div class="slot-actions">
+      <button class="slot-btn complete" onclick="completeSlot('${s.id}')" ${isDone?'disabled':''}>✓ Complete</button>
+      <button class="slot-btn" onclick="openEditModal(${JSON.stringify(s).replace(/"/g,'&quot;')})" ${isDone?'disabled':''}>✎ Edit</button>
+      <button class="slot-btn" onclick="openReschedule('${s.id}')" ${isDone?'disabled':''}>↺ Reschedule</button>
+      <button class="slot-btn cancel" onclick="cancelSlot('${s.id}')" ${isDone?'disabled':''}>✕ Cancel</button>
+    </div>
+  </div>`;
+}
+
+async function completeSlot(id) {
+  try {
+    await sb(`schedules?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed', updated_at: new Date().toISOString() }) });
+    showToast('Marked as completed ✓');
+    loadSchedule(selectedDate); loadStats();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function cancelSlot(id) {
+  if (!confirm('Cancel this slot?')) return;
+  try {
+    await sb(`schedules?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }) });
+    showToast('Slot cancelled');
+    loadSchedule(selectedDate); loadStats();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── ADD/EDIT MODAL ──
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Add to Schedule';
+  document.getElementById('edit-id').value = '';
+  document.getElementById('slot-category').value = 'Meeting';
+  document.getElementById('slot-title').value = '';
+  document.getElementById('slot-date').value = selectedDate || '';
+  document.getElementById('slot-start').value = '';
+  document.getElementById('slot-end').value = '';
+  document.getElementById('slot-desc').value = '';
+  updateWordCount();
+  document.getElementById('slot-modal').classList.add('open');
+}
+
+function openEditModal(s) {
+  document.getElementById('modal-title').textContent = 'Edit Slot';
+  document.getElementById('edit-id').value = s.id;
+  document.getElementById('slot-category').value = s.category;
+  document.getElementById('slot-title').value = s.title;
+  document.getElementById('slot-date').value = s.date;
+  document.getElementById('slot-start').value = s.start_time.slice(0,5);
+  document.getElementById('slot-end').value = s.end_time.slice(0,5);
+  document.getElementById('slot-desc').value = s.description || '';
+  updateWordCount();
+  document.getElementById('slot-modal').classList.add('open');
+}
+
+function updateWordCount() {
+  const text = document.getElementById('slot-desc').value.trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  const wc = document.getElementById('word-count');
+  wc.textContent = `${words} / 25 words`;
+  wc.className = `word-count ${words < 25 ? 'warn' : ''}`;
+
+  const title = document.getElementById('slot-title').value.trim();
+  const date = document.getElementById('slot-date').value;
+  const start = document.getElementById('slot-start').value;
+  const end = document.getElementById('slot-end').value;
+  document.getElementById('slot-submit').disabled = !(title && date && start && end && words >= 25);
+}
+
+['slot-title','slot-date','slot-start','slot-end'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateWordCount);
+});
+
+async function saveSlot() {
+  const id = document.getElementById('edit-id').value;
+  const date = document.getElementById('slot-date').value;
+  const start = document.getElementById('slot-start').value;
+  const end = document.getElementById('slot-end').value;
+
+  if (end <= start) { showToast('End time must be after start time', 'error'); return; }
+
+  const startH = parseInt(start.split(':')[0]);
+  const endH = parseInt(end.split(':')[0]);
+  if (startH < 5 || endH > 23) { showToast('Working hours: 5:00 AM – 11:00 PM', 'error'); return; }
+
+  // Check overlap
+  try {
+    const existing = await sb(`schedules?date=eq.${date}&status=neq.cancelled${id ? `&id=neq.${id}` : ''}`);
+    for (const s of existing) {
+      if (start < s.end_time && end > s.start_time) {
+        showToast('Time overlaps with existing slot!', 'error'); return;
+      }
+    }
+
+    const payload = {
+      category: document.getElementById('slot-category').value,
+      title: document.getElementById('slot-title').value.trim(),
+      date, start_time: start, end_time: end,
+      description: document.getElementById('slot-desc').value.trim(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (id) {
+      await sb(`schedules?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      showToast('Slot updated ✓');
+    } else {
+      payload.status = 'upcoming'; payload.created_by = 'owner';
+      await sb('schedules', { method: 'POST', body: JSON.stringify(payload) });
+      showToast('Slot added ✓');
+    }
+
+    closeModal('slot-modal');
+    loadSchedule(selectedDate);
+    scheduleCache = {};
+    renderCalendar();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── RESCHEDULE ──
+function openReschedule(id) {
+  document.getElementById('reschedule-id').value = id;
+  document.getElementById('reschedule-modal').classList.add('open');
+}
+
+async function confirmReschedule() {
+  const id = document.getElementById('reschedule-id').value;
+  const date = document.getElementById('reschedule-date').value;
+  const start = document.getElementById('reschedule-start').value;
+  const end = document.getElementById('reschedule-end').value;
+
+  if (!date || !start || !end) { showToast('Fill all fields', 'error'); return; }
+  if (end <= start) { showToast('End must be after start', 'error'); return; }
+
+  try {
+    const existing = await sb(`schedules?date=eq.${date}&status=neq.cancelled&id=neq.${id}`);
+    for (const s of existing) {
+      if (start < s.end_time && end > s.start_time) { showToast('Overlaps with existing slot!', 'error'); return; }
+    }
+    await sb(`schedules?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ date, start_time: start, end_time: end, status: 'rescheduled', updated_at: new Date().toISOString() }) });
+    showToast('Slot rescheduled ✓');
+    closeModal('reschedule-modal');
+    loadSchedule(selectedDate);
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── STATS ──
+async function loadStats() {
+  try {
+    const rows = await sb('schedules?select=status');
+    const completed = rows.filter(r => r.status === 'completed').length;
+    const rescheduled = rows.filter(r => r.status === 'rescheduled').length;
+    const cancelled = rows.filter(r => r.status === 'cancelled').length;
+
+    const statsArea = document.getElementById('stats-area');
+    statsArea.innerHTML = `
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-val" style="color:var(--green)">${completed}</div><div class="stat-lbl">Completed</div></div>
+        <div class="stat-card"><div class="stat-val" style="color:var(--yellow)">${rescheduled}</div><div class="stat-lbl">Rescheduled</div></div>
+        <div class="stat-card"><div class="stat-val" style="color:var(--red)">${cancelled}</div><div class="stat-lbl">Cancelled</div></div>
+      </div>
+      <div class="cancel-history">
+        <button class="cancel-toggle" onclick="toggleCancelHistory()">📋 Cancellation History</button>
+        <div class="cancel-list" id="cancel-list" style="display:none"></div>
+      </div>`;
+  } catch(e) {}
+}
+
+async function toggleCancelHistory() {
+  const list = document.getElementById('cancel-list');
+  if (list.style.display === 'none') {
+    list.style.display = 'flex';
+    try {
+      const rows = await sb('schedules?status=eq.cancelled&order=date.desc');
+      list.innerHTML = rows.length
+        ? rows.map(r => `<div class="cancel-item"><strong>${r.title}</strong> — ${r.date} ${r.start_time.slice(0,5)}–${r.end_time.slice(0,5)}</div>`).join('')
+        : '<div style="color:var(--muted);font-size:13px;padding:8px">No cancellations yet</div>';
+    } catch(e) { list.innerHTML = '<div style="color:var(--red)">Error loading</div>'; }
+  } else {
+    list.style.display = 'none';
+  }
+}
+
+// ── BOOKING LINK ──
+function copyBookingLink() {
+  const url = `${location.origin}/book`;
+  navigator.clipboard.writeText(url).then(() => showToast('Link copied! 🔗', 'info'));
+}
+
+// ── REQUESTS DRAWER ──
+async function loadPendingCount() {
+  try {
+    const rows = await sb('booking_requests?status=eq.pending&select=id');
+    const badge = document.getElementById('req-badge');
+    if (rows.length) { badge.textContent = rows.length; badge.style.display = 'flex'; }
+    else badge.style.display = 'none';
+  } catch(e) {}
+}
+
+async function openDrawer() {
+  document.getElementById('requests-drawer').classList.add('open');
+  const list = document.getElementById('requests-list');
+  list.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const rows = await sb('booking_requests?order=created_at.desc');
+    if (!rows.length) { list.innerHTML = '<div class="empty"><div class="icon">📭</div>No requests yet</div>'; return; }
+
+    // Detect conflicts
+    const pending = rows.filter(r => r.status === 'pending');
+    const conflicts = new Set();
+    for (let i = 0; i < pending.length; i++) {
+      for (let j = i+1; j < pending.length; j++) {
+        if (pending[i].requested_date === pending[j].requested_date &&
+            pending[i].start_time < pending[j].end_time &&
+            pending[i].end_time > pending[j].start_time) {
+          conflicts.add(pending[i].id);
+          conflicts.add(pending[j].id);
+        }
+      }
+    }
+
+    list.innerHTML = rows.map(r => `
+      <div class="request-card">
+        ${conflicts.has(r.id) ? '<div class="conflict-warn">⚠ Another request exists for this time slot</div>' : ''}
+        <div class="req-name">${r.visitor_name}</div>
+        <div class="req-email">${r.visitor_email}</div>
+        <div class="req-time">📅 ${r.requested_date} · ${r.start_time.slice(0,5)}–${r.end_time.slice(0,5)}</div>
+        <div class="req-desc">${r.description}</div>
+        <span class="badge-status ${r.status === 'pending' ? 'status-upcoming' : r.status === 'accepted' ? 'status-completed' : 'status-rescheduled'}" style="margin-bottom:10px;display:inline-block">${r.status}</span>
+        ${r.status === 'pending' ? `
+        <div class="req-actions">
+          <button class="req-btn accept" onclick="handleRequest('${r.id}','accept','${r.visitor_email}','${r.requested_date}','${r.start_time}','${r.end_time}','${r.visitor_name}')">✓ Accept</button>
+          <button class="req-btn remarks" onclick="openRemarks('${r.id}','accept_remarks','${r.visitor_email}')">✎ Accept w/ Remarks</button>
+          <button class="req-btn reschedule" onclick="openRemarks('${r.id}','reschedule','${r.visitor_email}')">↺ Request Reschedule</button>
+          <button class="req-btn decline" onclick="openRemarks('${r.id}','decline','${r.visitor_email}')">✕ Decline</button>
+        </div>` : ''}
+      </div>`).join('');
+  } catch(e) { list.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+}
+
+function closeDrawer() { document.getElementById('requests-drawer').classList.remove('open'); }
+
+async function handleRequest(id, action, email, date, start, end, name) {
+  try {
+    if (action === 'accept') {
+      // Check overlap
+      const existing = await sb(`schedules?date=eq.${date}&status=neq.cancelled`);
+      for (const s of existing) {
+        if (start < s.end_time && end > s.start_time) { showToast('Overlaps with existing slot!', 'error'); return; }
+      }
+      await sb('schedules', { method: 'POST', body: JSON.stringify({ date, start_time: start, end_time: end, title: `Meeting with ${name}`, category: 'Meeting', description: 'Accepted visitor request', status: 'upcoming', created_by: 'visitor', visitor_name: name, visitor_email: email }) });
+      await sb(`booking_requests?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'accepted', updated_at: new Date().toISOString() }) });
+      showToast('Request accepted ✓');
+      sendEmail(email, 'Your booking request was accepted!', `<p>Hi! Your meeting request for <b>${date}</b> at <b>${start.slice(0,5)}</b> has been accepted. See you then!</p>`);
+    }
+    openDrawer(); loadPendingCount(); scheduleCache = {}; renderCalendar();
+    if (selectedDate === date) loadSchedule(date);
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function openRemarks(id, action, email) {
+  document.getElementById('remarks-req-id').value = id;
+  document.getElementById('remarks-action').value = action;
+  document.getElementById('remarks-visitor-email').value = email;
+  const labels = { accept_remarks: ['Accept with Remarks', 'Your remarks'], reschedule: ['Request Reschedule', 'Suggest a new time and reason'], decline: ['Decline Request', 'Reason for declining (optional)'] };
+  const [title, label] = labels[action];
+  document.getElementById('remarks-title').textContent = title;
+  document.getElementById('remarks-label').textContent = label;
+  document.getElementById('remarks-text').value = '';
+  document.getElementById('remarks-modal').classList.add('open');
+}
+
+async function submitRemarks() {
+  const id = document.getElementById('remarks-req-id').value;
+  const action = document.getElementById('remarks-action').value;
+  const email = document.getElementById('remarks-visitor-email').value;
+  const text = document.getElementById('remarks-text').value.trim();
+
+  const statusMap = { accept_remarks: 'accepted_with_remarks', reschedule: 'reschedule_requested', decline: 'declined' };
+  try {
+    await sb(`booking_requests?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: statusMap[action], owner_remarks: text, updated_at: new Date().toISOString() }) });
+    const subjects = { accept_remarks: 'Your booking was accepted!', reschedule: 'Reschedule requested for your booking', decline: 'Update on your booking request' };
+    sendEmail(email, subjects[action], `<p>${text || 'The owner has responded to your booking request.'}</p>`);
+    showToast('Response sent ✓');
+    closeModal('remarks-modal');
+    openDrawer(); loadPendingCount();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function sendEmail(to, subject, html) {
+  try { await fetch('/api/email', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ to, subject, html }) }); } catch(e) {}
+}
+
+// ── CHAT ──
+function chatKeydown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  appendMsg(msg, 'user');
+  chatHistory.push({ role: 'user', content: msg });
+
+  // Show typing
+  const typing = document.createElement('div');
+  typing.className = 'msg typing';
+  typing.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  typing.id = 'typing-indicator';
+  document.getElementById('chat-messages').appendChild(typing);
+  scrollChat();
+
+  try {
+    const now = nowIST();
+    const scheduleData = await sb(`schedules?date=eq.${now.toISOString().split('T')[0]}&order=start_time.asc`).catch(() => []);
+    const pendingReqs = await sb('booking_requests?status=eq.pending').catch(() => []);
+
+    const systemPrompt = `You are MyScheduler, an AI assistant for the owner's personal schedule. Current IST time: ${now.toLocaleString('en-IN')}. Working hours: 5:00 AM – 11:00 PM IST.
+
+Today's schedule: ${JSON.stringify(scheduleData)}
+Pending booking requests: ${JSON.stringify(pendingReqs)}
+
+You can answer questions, find free slots, and help manage the schedule. For write actions (book, cancel, reschedule), ALWAYS ask for confirmation first with details. When user confirms, include an action tag at the end:
+<ACTION>{"type":"book","date":"YYYY-MM-DD","start":"HH:MM","end":"HH:MM","title":"Title","category":"Meeting","description":"..."}</ACTION>
+<ACTION>{"type":"cancel","id":"slot-id"}</ACTION>
+<ACTION>{"type":"reschedule","id":"slot-id","date":"YYYY-MM-DD","start":"HH:MM","end":"HH:MM"}</ACTION>
+Never execute write actions without explicit user confirmation. Always show times in IST. Keep responses concise and helpful.`;
+
+    const r = await fetch(GEMINI_PROXY, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ messages: chatHistory.slice(-10), systemPrompt }) });
+    const data = await r.json();
+    const text = data.text || 'Sorry, I had trouble responding.';
+
+    document.getElementById('typing-indicator')?.remove();
+
+    // Check for action
+    const actionMatch = text.match(/<ACTION>([\s\S]*?)<\/ACTION>/);
+    const displayText = text.replace(/<ACTION>[\s\S]*?<\/ACTION>/g, '').trim();
+
+    appendMsg(displayText, 'ai');
+    chatHistory.push({ role: 'assistant', content: displayText });
+
+    if (actionMatch) {
+      try {
+        const action = JSON.parse(actionMatch[1]);
+        await executeAction(action);
+      } catch(e) {}
+    }
+  } catch(e) {
+    document.getElementById('typing-indicator')?.remove();
+    appendMsg('Sorry, something went wrong. Please try again.', 'ai');
+  }
+}
+
+function appendMsg(text, role) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.textContent = text;
+  document.getElementById('chat-messages').appendChild(div);
+  scrollChat();
+}
+
+function scrollChat() {
+  const c = document.getElementById('chat-messages');
+  c.scrollTop = c.scrollHeight;
+}
+
+async function executeAction(action) {
+  try {
+    if (action.type === 'book') {
+      const existing = await sb(`schedules?date=eq.${action.date}&status=neq.cancelled`);
+      for (const s of existing) {
+        if (action.start < s.end_time && action.end > s.start_time) { showToast('Overlap detected — not booked', 'error'); return; }
+      }
+      const words = (action.description || '').split(/\s+/).filter(Boolean).length;
+      if (words < 25) { appendMsg('Description needs at least 25 words. Please provide more detail.', 'ai'); return; }
+      await sb('schedules', { method: 'POST', body: JSON.stringify({ date: action.date, start_time: action.start, end_time: action.end, title: action.title, category: action.category || 'Meeting', description: action.description, status: 'upcoming', created_by: 'owner' }) });
+      showToast('Slot booked via chat ✓');
+      loadSchedule(selectedDate); scheduleCache = {}; renderCalendar();
+    } else if (action.type === 'cancel') {
+      await sb(`schedules?id=eq.${action.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }) });
+      showToast('Slot cancelled via chat ✓');
+      loadSchedule(selectedDate); loadStats();
+    } else if (action.type === 'reschedule') {
+      await sb(`schedules?id=eq.${action.id}`, { method: 'PATCH', body: JSON.stringify({ date: action.date, start_time: action.start, end_time: action.end, status: 'rescheduled', updated_at: new Date().toISOString() }) });
+      showToast('Slot rescheduled via chat ✓');
+      loadSchedule(selectedDate);
+    }
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+document.getElementById('requests-drawer').addEventListener('click', e => {
+  if (e.target === document.getElementById('requests-drawer')) closeDrawer();
+});
+</script>
+</body>
+</html>
