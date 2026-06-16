@@ -1,1311 +1,799 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MyScheduler — Owner</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MyScheduler — Owner Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
-  :root {
-    --bg: #0F172A;
-    --card: #1E2938;
-    --card2: #162032;
-    --border: #334155;
-    --text: #F1F5F9;
-    --muted: #94A3B8;
-    --accent: #6366F1;
-    --accent2: #818CF8;
-    --green: #22C55E;
-    --yellow: #F59E0B;
-    --red: #EF4444;
-    --orange: #F97316;
-    --blue: #38BDF8;
-    --mono: 'JetBrains Mono', monospace;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* ── PASSWORD SCREEN ── */
-  #password-screen {
-    position: fixed; inset: 0;
-    background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000;
-    background-image: radial-gradient(ellipse at 30% 50%, rgba(99,102,241,0.08) 0%, transparent 60%),
-                      radial-gradient(ellipse at 80% 20%, rgba(129,140,248,0.05) 0%, transparent 50%);
-  }
-
-  .password-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 48px 40px;
-    width: 380px;
-    text-align: center;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-  }
-
-  .password-card .logo {
-    width: 56px; height: 56px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 16px;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 24px; margin-bottom: 20px;
-  }
-
-  .password-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-  .password-card p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
-
-  .password-card input {
-    width: 100%; padding: 12px 16px;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--text); font-size: 15px;
-    outline: none; margin-bottom: 12px;
-    transition: border-color 0.2s;
-  }
-
-  .password-card input:focus { border-color: var(--accent); }
-
-  .password-card .error {
-    color: var(--red); font-size: 13px; margin-bottom: 12px;
-    display: none; background: rgba(239,68,68,0.1);
-    padding: 8px 12px; border-radius: 8px;
-  }
-
-  .btn-primary {
-    width: 100%; padding: 12px; border: none;
-    background: var(--accent); color: #fff;
-    font-size: 15px; font-weight: 600;
-    border-radius: 10px; cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-  }
-
-  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
-  .btn-primary:active { transform: translateY(0); }
-
-  /* ── MAIN LAYOUT ── */
-  #app { display: none; min-height: 100vh; }
-
-  header {
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    padding: 0 24px;
-    height: 64px;
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
-
-  .header-left { display: flex; align-items: center; gap: 12px; }
-  .header-logo {
-    width: 36px; height: 36px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-  }
-
-  .header-title { font-size: 16px; font-weight: 700; }
-  .header-subtitle { font-size: 12px; color: var(--muted); }
-
-  .header-right { display: flex; align-items: center; gap: 10px; }
-
-  .btn-icon {
-    padding: 8px 14px; border: 1px solid var(--border);
-    background: transparent; color: var(--text);
-    font-size: 13px; font-weight: 500;
-    border-radius: 8px; cursor: pointer;
-    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
-  }
-
-  .btn-icon:hover { background: var(--card2); border-color: var(--accent); }
-
-  .btn-requests {
-    position: relative;
-    padding: 8px 14px; border: 1px solid var(--border);
-    background: transparent; color: var(--text);
-    font-size: 13px; font-weight: 500;
-    border-radius: 8px; cursor: pointer;
-    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
-  }
-
-  .btn-requests:hover { background: var(--card2); border-color: var(--accent); }
-
-  .badge {
-    position: absolute; top: -6px; right: -6px;
-    background: var(--red); color: #fff;
-    font-size: 11px; font-weight: 700;
-    width: 18px; height: 18px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-  }
-
-  /* ── THREE PANEL ── */
-  .panels {
-    display: grid;
-    grid-template-columns: 320px 1fr 360px;
-    height: calc(100vh - 64px);
-  }
-
-  .panel {
-    border-right: 1px solid var(--border);
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-
-  .panel:last-child { border-right: none; }
-
-  .panel-header {
-    padding: 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0;
-    background: var(--bg);
-    z-index: 10;
-  }
-
-  .panel-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-
-  /* ── CALENDAR ── */
-  .calendar { padding: 16px; }
-
-  .cal-nav {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 16px;
-  }
-
-  .cal-month { font-size: 15px; font-weight: 600; }
-
-  .cal-btn {
-    width: 30px; height: 30px; border: 1px solid var(--border);
-    background: var(--card); border-radius: 8px;
-    color: var(--text); cursor: pointer; font-size: 16px;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-  }
-
-  .cal-btn:hover { border-color: var(--accent); background: var(--card2); }
-
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-
-  .cal-dow {
-    text-align: center; font-size: 11px;
-    font-weight: 600; color: var(--muted);
-    padding: 6px 0; text-transform: uppercase;
-  }
-
-  .cal-day {
-    aspect-ratio: 1; display: flex; align-items: center;
-    justify-content: center; font-size: 13px;
-    border-radius: 8px; cursor: pointer;
-    position: relative; transition: all 0.15s;
-    border: 1px solid transparent;
-  }
-
-  .cal-day:hover:not(.empty):not(.past) { background: var(--card); border-color: var(--border); }
-  .cal-day.today { background: rgba(99,102,241,0.15); border-color: var(--accent); color: var(--accent2); font-weight: 600; }
-  .cal-day.selected { background: var(--accent); color: #fff; font-weight: 600; border-color: var(--accent); }
-  .cal-day.past { color: var(--muted); cursor: default; opacity: 0.5; }
-  .cal-day.empty { cursor: default; }
-
-  .cal-day .dot {
-    position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
-    width: 4px; height: 4px; border-radius: 50%;
-    background: var(--accent2);
-  }
-
-  /* ── SCHEDULE PANEL ── */
-  .add-btn {
-    padding: 8px 14px; background: var(--accent);
-    border: none; color: #fff; font-size: 13px;
-    font-weight: 600; border-radius: 8px; cursor: pointer;
-    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
-  }
-
-  .add-btn:hover { background: var(--accent2); }
-
-  .schedule-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-
-  .slot-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
-    border-radius: 10px; padding: 14px;
-    transition: all 0.2s;
-  }
-
-  .slot-card:hover { border-color: var(--accent); transform: translateX(2px); }
-  .slot-card.status-completed { border-left-color: var(--green); opacity: 0.7; }
-  .slot-card.status-cancelled { border-left-color: var(--red); opacity: 0.6; }
-  .slot-card.status-rescheduled { border-left-color: var(--yellow); }
-
-  .slot-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-  .slot-title { font-size: 14px; font-weight: 600; }
-  .slot-time { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
-
-  .slot-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
-
-  .badge-cat {
-    font-size: 11px; font-weight: 500;
-    padding: 2px 8px; border-radius: 99px;
-    background: rgba(99,102,241,0.15); color: var(--accent2);
-    border: 1px solid rgba(99,102,241,0.3);
-  }
-
-  .badge-status {
-    font-size: 11px; font-weight: 500;
-    padding: 2px 8px; border-radius: 99px;
-  }
-
-  .status-upcoming { background: rgba(56,189,248,0.1); color: var(--blue); border: 1px solid rgba(56,189,248,0.2); }
-  .status-completed { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
-  .status-cancelled { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
-  .status-rescheduled { background: rgba(245,158,11,0.1); color: var(--yellow); border: 1px solid rgba(245,158,11,0.2); }
-
-  .slot-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-
-  .slot-btn {
-    padding: 5px 10px; font-size: 12px; font-weight: 500;
-    border-radius: 6px; cursor: pointer; border: 1px solid var(--border);
-    background: transparent; color: var(--text); transition: all 0.15s;
-  }
-
-  .slot-btn:hover { background: var(--card2); }
-  .slot-btn.complete { border-color: var(--green); color: var(--green); }
-  .slot-btn.complete:hover { background: rgba(34,197,94,0.1); }
-  .slot-btn.cancel { border-color: var(--red); color: var(--red); }
-  .slot-btn.cancel:hover { background: rgba(239,68,68,0.1); }
-  .slot-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* ── STATS ── */
-  .stats-row {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px; padding: 12px;
-    border-top: 1px solid var(--border);
-    margin-top: auto;
-  }
-
-  .stat-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 10px; padding: 12px; text-align: center;
-  }
-
-  .stat-val { font-size: 22px; font-weight: 700; font-family: var(--mono); }
-  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
-
-  /* ── CHAT PANEL ── */
-  .chat-messages {
-    flex: 1; overflow-y: auto; padding: 16px;
-    display: flex; flex-direction: column; gap: 12px;
-    height: calc(100% - 130px);
-  }
-
-  .msg {
-    max-width: 85%; padding: 10px 14px;
-    border-radius: 14px; font-size: 14px; line-height: 1.5;
-    white-space: pre-wrap;
-  }
-
-  .msg.user {
-    align-self: flex-end;
-    background: var(--accent); color: #fff;
-    border-bottom-right-radius: 4px;
-  }
-
-  .msg.ai {
-    align-self: flex-start;
-    background: var(--card); color: var(--text);
-    border: 1px solid var(--border);
-    border-bottom-left-radius: 4px;
-  }
-
-  .msg.typing {
-    align-self: flex-start;
-    background: var(--card); border: 1px solid var(--border);
-    border-bottom-left-radius: 4px; padding: 14px;
-  }
-
-  .typing-dots { display: flex; gap: 4px; }
-  .typing-dots span {
-    width: 6px; height: 6px; background: var(--muted);
-    border-radius: 50%; animation: bounce 1.2s infinite;
-  }
-  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-  @keyframes bounce {
-    0%, 60%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-6px); }
-  }
-
-  .chat-input-area {
-    padding: 12px 16px; border-top: 1px solid var(--border);
-    display: flex; gap: 8px; align-items: flex-end;
-    background: var(--bg);
-  }
-
-  .chat-input {
-    flex: 1; background: var(--card); border: 1px solid var(--border);
-    border-radius: 10px; padding: 10px 14px;
-    color: var(--text); font-size: 14px; resize: none;
-    font-family: inherit; max-height: 100px; outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .chat-input:focus { border-color: var(--accent); }
-
-  .chat-send {
-    width: 38px; height: 38px; border-radius: 10px;
-    background: var(--accent); border: none; color: #fff;
-    font-size: 16px; cursor: pointer; transition: all 0.2s;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .chat-send:hover { background: var(--accent2); }
-
-  /* ── MODAL ── */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 500; backdrop-filter: blur(4px);
-    opacity: 0; pointer-events: none; transition: opacity 0.2s;
-  }
-
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-
-  .modal {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px; padding: 28px;
-    width: 480px; max-width: 95vw; max-height: 90vh;
-    overflow-y: auto; transform: translateY(20px);
-    transition: transform 0.2s;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-  }
-
-  .modal-overlay.open .modal { transform: translateY(0); }
-
-  .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
-
-  .form-group { margin-bottom: 16px; }
-  .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
-
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    width: 100%; padding: 10px 14px;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); font-size: 14px;
-    font-family: inherit; outline: none; transition: border-color 0.2s;
-  }
-
-  .form-group input:focus,
-  .form-group select:focus,
-  .form-group textarea:focus { border-color: var(--accent); }
-
-  .form-group select option { background: var(--card); }
-  .form-group textarea { min-height: 80px; resize: vertical; }
-
-  .word-count { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; }
-  .word-count.warn { color: var(--red); }
-
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
-
-  .btn-secondary {
-    padding: 10px 20px; border: 1px solid var(--border);
-    background: transparent; color: var(--text);
-    font-size: 14px; font-weight: 500;
-    border-radius: 8px; cursor: pointer; transition: all 0.2s;
-  }
-
-  .btn-secondary:hover { background: var(--card2); }
-
-  .btn-submit {
-    padding: 10px 20px; background: var(--accent); border: none;
-    color: #fff; font-size: 14px; font-weight: 600;
-    border-radius: 8px; cursor: pointer; transition: all 0.2s;
-  }
-
-  .btn-submit:hover:not(:disabled) { background: var(--accent2); }
-  .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* ── DRAWER ── */
-  .drawer-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-    z-index: 400; opacity: 0; pointer-events: none;
-    transition: opacity 0.25s; backdrop-filter: blur(2px);
-  }
-
-  .drawer-overlay.open { opacity: 1; pointer-events: all; }
-
-  .drawer {
-    position: fixed; right: 0; top: 0; bottom: 0;
-    width: 420px; max-width: 95vw;
-    background: var(--card); border-left: 1px solid var(--border);
-    transform: translateX(100%); transition: transform 0.3s ease;
-    z-index: 401; overflow-y: auto;
-  }
-
-  .drawer-overlay.open .drawer { transform: translateX(0); }
-
-  .drawer-header {
-    padding: 20px 24px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; background: var(--card); z-index: 10;
-  }
-
-  .drawer-title { font-size: 16px; font-weight: 700; }
-
-  .close-btn {
-    width: 32px; height: 32px; border: 1px solid var(--border);
-    background: transparent; color: var(--text); border-radius: 8px;
-    cursor: pointer; font-size: 18px; display: flex;
-    align-items: center; justify-content: center; transition: all 0.2s;
-  }
-
-  .close-btn:hover { background: var(--card2); }
-
-  .request-card {
-    margin: 12px; border: 1px solid var(--border);
-    border-radius: 12px; padding: 16px;
-    background: var(--bg);
-  }
-
-  .request-card .req-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-  .request-card .req-email { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-  .request-card .req-time { font-size: 12px; font-family: var(--mono); color: var(--blue); margin-bottom: 8px; }
-  .request-card .req-desc { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
-  .request-card .req-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-
-  .req-btn {
-    padding: 6px 12px; font-size: 12px; font-weight: 500;
-    border-radius: 6px; cursor: pointer; border: none; transition: all 0.2s;
-  }
-
-  .req-btn.accept { background: rgba(34,197,94,0.15); color: var(--green); }
-  .req-btn.accept:hover { background: rgba(34,197,94,0.25); }
-  .req-btn.remarks { background: rgba(56,189,248,0.1); color: var(--blue); }
-  .req-btn.remarks:hover { background: rgba(56,189,248,0.2); }
-  .req-btn.reschedule { background: rgba(245,158,11,0.1); color: var(--yellow); }
-  .req-btn.reschedule:hover { background: rgba(245,158,11,0.2); }
-  .req-btn.decline { background: rgba(239,68,68,0.1); color: var(--red); }
-  .req-btn.decline:hover { background: rgba(239,68,68,0.2); }
-
-  .conflict-warn {
-    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
-    border-radius: 8px; padding: 8px 12px;
-    font-size: 12px; color: var(--yellow); margin-bottom: 10px;
-    display: flex; align-items: center; gap: 6px;
-  }
-
-  /* ── CANCELLATION HISTORY ── */
-  .cancel-history { padding: 12px; border-top: 1px solid var(--border); }
-
-  .cancel-toggle {
-    width: 100%; padding: 10px; background: transparent;
-    border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); font-size: 13px; cursor: pointer;
-    text-align: left; transition: all 0.2s;
-  }
-
-  .cancel-toggle:hover { background: var(--card); }
-
-  .cancel-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-
-  .cancel-item {
-    background: var(--card); border: 1px solid var(--border);
-    border-left: 3px solid var(--red); border-radius: 8px;
-    padding: 10px 12px; font-size: 12px;
-  }
-
-  /* ── EMPTY & LOADING ── */
-  .empty {
-    padding: 40px 20px; text-align: center;
-    color: var(--muted); font-size: 14px;
-  }
-
-  .empty .icon { font-size: 32px; margin-bottom: 10px; }
-
-  .toast {
-    position: fixed; bottom: 24px; right: 24px;
-    padding: 12px 20px; border-radius: 10px;
-    font-size: 14px; font-weight: 500; z-index: 9999;
-    transform: translateY(20px); opacity: 0;
-    transition: all 0.3s;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-  }
-
-  .toast.show { transform: translateY(0); opacity: 1; }
-  .toast.success { background: rgba(34,197,94,0.9); color: #fff; }
-  .toast.error { background: rgba(239,68,68,0.9); color: #fff; }
-  .toast.info { background: rgba(99,102,241,0.9); color: #fff; }
-
-  /* ── MOBILE ── */
-  @media (max-width: 768px) {
-    .panels {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto 1fr auto;
-      height: auto;
-      min-height: calc(100vh - 64px);
-    }
-
-    .panel { border-right: none; border-bottom: 1px solid var(--border); overflow-y: visible; }
-    .panel:last-child { border-bottom: none; }
-    .chat-messages { height: 300px; }
-    .form-row { grid-template-columns: 1fr; }
-  }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f1f5f9;min-height:100vh}
+
+/* PASSWORD */
+#pw-screen{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.pw-card{background:#1e293b;border:1px solid #334155;border-radius:20px;padding:48px 40px;width:100%;max-width:380px;text-align:center}
+.pw-card h1{font-size:2rem;color:#6366f1;margin-bottom:6px}
+.pw-card p{color:#94a3b8;margin-bottom:32px;font-size:.9rem}
+.pw-card input{width:100%;padding:12px 16px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#f1f5f9;font-size:1rem;margin-bottom:12px;outline:none}
+.pw-card input:focus{border-color:#6366f1}
+.pw-card button{width:100%;padding:13px;background:#6366f1;color:white;border:none;border-radius:10px;font-size:1rem;cursor:pointer;font-weight:600}
+.pw-card button:hover{background:#4f46e5}
+.pw-error{color:#ef4444;font-size:.85rem;margin-top:8px}
+
+/* APP */
+#app{display:none}
+.topbar{background:#1e293b;border-bottom:1px solid #334155;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar h1{font-size:1.4rem;color:#6366f1;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:10px}
+
+/* TABS */
+.tabs{display:flex;gap:4px;background:#0f172a;padding:4px;border-radius:10px}
+.tab{padding:7px 16px;border-radius:7px;border:none;cursor:pointer;font-size:.85rem;font-weight:500;color:#94a3b8;background:none;transition:all .2s}
+.tab.active{background:#6366f1;color:white}
+.tab:hover:not(.active){color:#f1f5f9}
+
+/* BUTTONS */
+.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:.85rem;font-weight:500;transition:all .15s}
+.btn-primary{background:#6366f1;color:white}.btn-primary:hover{background:#4f46e5}
+.btn-success{background:#059669;color:white}.btn-success:hover{background:#047857}
+.btn-danger{background:#dc2626;color:white}.btn-danger:hover{background:#b91c1c}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
+.btn-ghost{background:#334155;color:#f1f5f9}.btn-ghost:hover{background:#475569}
+.btn-sm{padding:5px 11px;font-size:.78rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.badge-count{background:#ef4444;color:white;border-radius:50%;width:20px;height:20px;font-size:.72rem;display:inline-flex;align-items:center;justify-content:center;margin-left:4px}
+
+/* PANELS */
+.panels{display:grid;grid-template-columns:280px 1fr 300px;height:calc(100vh - 57px)}
+.panel{overflow-y:auto;padding:20px;border-right:1px solid #334155}
+.panel:last-child{border-right:none}
+.panel-title{font-size:.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;font-weight:600}
+
+/* CALENDAR */
+.cal-wrap{background:#1e293b;border-radius:12px;padding:14px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-head h3{font-size:.95rem;font-weight:600}
+.cal-nav-btn{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px}
+.cal-nav-btn:hover{background:#334155;color:#f1f5f9}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.cal-dname{text-align:center;font-size:.68rem;color:#64748b;padding:3px;font-weight:500}
+.cal-day{text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:.82rem;position:relative;transition:background .15s}
+.cal-day:hover:not(.cal-past):not(.cal-empty){background:#334155}
+.cal-day.cal-today{background:#6366f1;color:white;font-weight:700}
+.cal-day.cal-selected{background:#4f46e5;color:white}
+.cal-day.cal-has-event::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:#10b981;border-radius:50%}
+.cal-day.cal-past{color:#475569;cursor:default}
+.cal-day.cal-empty{cursor:default}
+
+/* SLOT CARDS */
+.slot-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:10px;border-left:4px solid #6366f1;transition:border-color .2s}
+.slot-card.completed{border-left-color:#10b981}
+.slot-card.cancelled{border-left-color:#ef4444;opacity:.65}
+.slot-card.rescheduled{border-left-color:#f59e0b}
+.slot-title{font-weight:600;font-size:.95rem;margin-bottom:3px}
+.slot-time{font-size:.78rem;color:#94a3b8;margin-bottom:6px}
+.slot-desc{font-size:.8rem;color:#94a3b8;margin-bottom:8px;line-height:1.4}
+.cat-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:600;margin-bottom:7px}
+.cat-Meeting{background:#1d4ed8;color:white}
+.cat-Brainstorming{background:#7c3aed;color:white}
+.cat-Event\ Participation{background:#0891b2;color:white}
+.cat-Learnings{background:#065f46;color:white}
+.cat-Others{background:#374151;color:white}
+.slot-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.status-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600}
+.pill-upcoming{background:#1e3a5f;color:#60a5fa}
+.pill-completed{background:#064e3b;color:#34d399}
+.pill-cancelled{background:#450a0a;color:#f87171}
+.pill-rescheduled{background:#451a03;color:#fcd34d}
+
+/* STATS */
+.stats-row{display:flex;gap:10px;margin-bottom:18px}
+.stat-box{flex:1;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:12px;text-align:center}
+.stat-num{font-size:1.6rem;font-weight:700}
+.stat-lbl{font-size:.7rem;color:#94a3b8;margin-top:2px}
+
+/* REQUEST CARDS */
+.req-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:12px}
+.req-card.conflict{border-color:#f59e0b}
+.conflict-warn{background:#451a03;border:1px solid #f59e0b;border-radius:6px;padding:7px 10px;font-size:.78rem;color:#fcd34d;margin-bottom:10px}
+.req-meta{font-size:.8rem;color:#94a3b8;margin-bottom:3px}
+.req-desc{font-size:.85rem;margin:9px 0;line-height:1.45}
+.req-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.status-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600;margin-left:6px}
+.s-pending{background:#451a03;color:#fcd34d}
+.s-accepted,.s-accepted_with_remarks{background:#064e3b;color:#34d399}
+.s-declined{background:#450a0a;color:#f87171}
+.s-reschedule_requested{background:#1e3a5f;color:#60a5fa}
+
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:100%}
+.chat-msgs{flex:1;overflow-y:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:10px}
+.msg-user{align-self:flex-end;max-width:88%}
+.msg-user .bubble{background:#6366f1;color:white;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:.875rem;line-height:1.45}
+.msg-ai{align-self:flex-start;max-width:88%}
+.msg-ai .bubble{background:#1e293b;border:1px solid #334155;color:#f1f5f9;padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:.875rem;line-height:1.45}
+.chat-typing{color:#64748b;font-size:.8rem;font-style:italic;padding:4px 0}
+.chat-row{display:flex;gap:8px;margin-top:10px;flex-shrink:0}
+.chat-row input{flex:1;padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:.875rem;outline:none}
+.chat-row input:focus{border-color:#6366f1}
+.chat-row button{padding:10px 16px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500}
+.chat-row button:hover{background:#4f46e5}
+
+/* MODALS */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal h2{margin-bottom:20px;font-size:1.1rem}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:.82rem;color:#94a3b8;margin-bottom:5px;font-weight:500}
+.fg input,.fg select,.fg textarea{width:100%;padding:10px 13px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:.875rem;outline:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#6366f1}
+.fg textarea{height:90px;resize:vertical;line-height:1.45}
+.wc{font-size:.73rem;color:#64748b;margin-top:3px}
+.wc.ok{color:#10b981}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.form-err{color:#ef4444;font-size:.8rem;margin-top:8px}
+
+/* CANCEL HISTORY */
+.ch-toggle{background:none;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;margin-top:14px}
+.ch-toggle:hover{border-color:#6366f1;color:#f1f5f9}
+.ch-item{background:#1e293b;border-left:3px solid #ef4444;border-radius:8px;padding:10px 13px;margin-top:8px;font-size:.83rem}
+
+.no-data{text-align:center;color:#475569;padding:36px 20px;font-size:.9rem}
+.copy-ok{color:#10b981;font-size:.78rem;margin-left:8px}
+
+/* REQUESTS TAB */
+.req-tabs{display:flex;gap:2px;background:#0f172a;padding:3px;border-radius:8px;margin-bottom:16px}
+.req-tab{flex:1;text-align:center;padding:6px;border-radius:6px;border:none;cursor:pointer;font-size:.8rem;color:#94a3b8;background:none}
+.req-tab.active{background:#334155;color:#f1f5f9}
+
+@media(max-width:768px){
+  .panels{grid-template-columns:1fr;height:auto}
+  .panel{border-right:none;border-bottom:1px solid #334155;min-height:280px}
+  .topbar{flex-wrap:wrap;gap:8px}
+}
 </style>
 </head>
 <body>
 
-<!-- PASSWORD SCREEN -->
-<div id="password-screen">
-  <div class="password-card">
-    <div class="logo">📅</div>
+<!-- PASSWORD -->
+<div id="pw-screen">
+  <div class="pw-card">
     <h1>MyScheduler</h1>
-    <p>Owner dashboard — enter your password to continue</p>
-    <input type="password" id="pw-input" placeholder="Password" />
-    <div class="error" id="pw-error">Incorrect password. Try again.</div>
-    <button class="btn-primary" onclick="checkPassword()">Sign In</button>
+    <p>Owner Dashboard — Login</p>
+    <input type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')login()"/>
+    <button onclick="login()">Login</button>
+    <div class="pw-error" id="pw-err"></div>
   </div>
 </div>
 
-<!-- APP -->
+<!-- MAIN APP -->
 <div id="app">
-  <!-- HEADER -->
-  <header>
-    <div class="header-left">
-      <div class="header-logo">📅</div>
-      <div>
-        <div class="header-title">MyScheduler</div>
-        <div class="header-subtitle" id="today-label">Today</div>
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>MyScheduler</h1>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('schedule')" id="tab-schedule">📅 Schedule</button>
+        <button class="tab" onclick="switchTab('requests')" id="tab-requests">
+          📬 Requests<span class="badge-count" id="req-badge">0</span>
+        </button>
       </div>
     </div>
-    <div class="header-right">
-      <button class="btn-icon" onclick="copyBookingLink()">🔗 Copy Booking Link</button>
-      <button class="btn-requests" onclick="openDrawer()">
-        📥 Requests
-        <span class="badge" id="req-badge" style="display:none">0</span>
-      </button>
+    <div class="topbar-right">
+      <button class="btn btn-ghost" onclick="copyLink()">📋 Copy Booking Link <span class="copy-ok" id="copy-ok" style="display:none">Copied!</span></button>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Add Slot</button>
     </div>
-  </header>
+  </div>
 
-  <!-- PANELS -->
-  <div class="panels">
-
-    <!-- PANEL 1: CALENDAR -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">Calendar</span>
-      </div>
-      <div class="calendar">
-        <div class="cal-nav">
-          <button class="cal-btn" onclick="changeMonth(-1)">‹</button>
-          <div class="cal-month" id="cal-month-label"></div>
-          <button class="cal-btn" onclick="changeMonth(1)">›</button>
+  <!-- SCHEDULE TAB -->
+  <div id="view-schedule">
+    <div class="panels">
+      <!-- Panel 1: Calendar -->
+      <div class="panel">
+        <div class="panel-title">Calendar</div>
+        <div class="cal-wrap">
+          <div class="cal-head">
+            <button class="cal-nav-btn" onclick="calMonth(-1)">&#8592;</button>
+            <h3 id="cal-label"></h3>
+            <button class="cal-nav-btn" onclick="calMonth(1)">&#8594;</button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
         </div>
-        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+
+      <!-- Panel 2: Day view -->
+      <div class="panel">
+        <div class="panel-title">Day Schedule — <span id="day-label">Select a date</span></div>
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-completed">0</div><div class="stat-lbl">Completed</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:#f59e0b" id="s-rescheduled">0</div><div class="stat-lbl">Rescheduled</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-cancelled">0</div><div class="stat-lbl">Cancelled</div></div>
+        </div>
+        <div id="slots-list"><div class="no-data">Select a date to view schedule</div></div>
+        <button class="ch-toggle" onclick="toggleHistory()">📋 Cancellation History</button>
+        <div id="ch-list" style="display:none"></div>
+      </div>
+
+      <!-- Panel 3: AI Chat -->
+      <div class="panel">
+        <div class="panel-title">AI Assistant</div>
+        <div class="chat-wrap">
+          <div class="chat-msgs" id="chat-msgs">
+            <div class="msg-ai"><div class="bubble">👋 Hi! I'm your AI scheduling assistant.<br><br>Ask me anything:<br>• "What do I have today?"<br>• "When am I free on Friday?"<br>• "Book a meeting at 3pm"<br>• "Show pending requests"</div></div>
+          </div>
+          <div class="chat-row">
+            <input type="text" id="chat-in" placeholder="Ask anything..." onkeydown="if(event.key==='Enter')sendChat()"/>
+            <button onclick="sendChat()">Send</button>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
 
-    <!-- PANEL 2: SCHEDULE -->
-    <div class="panel" style="display:flex; flex-direction:column;">
-      <div class="panel-header">
-        <span class="panel-title" id="schedule-date-label">Select a date</span>
-        <button class="add-btn" onclick="openAddModal()">＋ Add to Schedule</button>
-      </div>
-      <div class="schedule-list" id="schedule-list">
-        <div class="empty"><div class="icon">📆</div>Select a date to view schedule</div>
-      </div>
-      <div id="stats-area"></div>
+  <!-- REQUESTS TAB -->
+  <div id="view-requests" style="display:none;padding:20px;max-width:900px;margin:0 auto">
+    <div class="req-tabs">
+      <button class="req-tab active" onclick="filterReqs('pending')" id="rt-pending">⏳ Pending</button>
+      <button class="req-tab" onclick="filterReqs('all')" id="rt-all">📋 All Requests</button>
     </div>
-
-    <!-- PANEL 3: CHAT -->
-    <div class="panel" style="display:flex; flex-direction:column;">
-      <div class="panel-header">
-        <span class="panel-title">AI Assistant</span>
-        <span style="font-size:11px;color:var(--muted)">Gemini 2.0 Flash</span>
-      </div>
-      <div class="chat-messages" id="chat-messages">
-        <div class="msg ai">👋 Hi! I'm your scheduling assistant. Ask me things like:
-
-• "What do I have today?"
-• "When am I free this week?"
-• "Book a meeting at 3pm tomorrow"
-• "Cancel my 10am meeting"
-• "Show me pending requests"</div>
-      </div>
-      <div class="chat-input-area">
-        <textarea class="chat-input" id="chat-input" rows="1" placeholder="Ask anything about your schedule…" onkeydown="chatKeydown(event)"></textarea>
-        <button class="chat-send" onclick="sendChat()">➤</button>
-      </div>
-    </div>
-
+    <div id="reqs-list"><div class="no-data">Loading requests...</div></div>
   </div>
 </div>
 
-<!-- ADD/EDIT SLOT MODAL -->
-<div class="modal-overlay" id="slot-modal">
+<!-- ADD/EDIT MODAL -->
+<div class="overlay" id="slot-modal">
   <div class="modal">
-    <h2 id="modal-title">Add to Schedule</h2>
-    <input type="hidden" id="edit-id" />
-    <div class="form-group">
-      <label>Category</label>
-      <select id="slot-category">
-        <option>Meeting</option>
-        <option>Brainstorming</option>
-        <option>Event Participation</option>
-        <option>Learnings</option>
-        <option>Others</option>
+    <h2 id="slot-modal-title">Add to Schedule</h2>
+    <div class="fg"><label>Category</label>
+      <select id="f-cat">
+        <option>Meeting</option><option>Brainstorming</option>
+        <option>Event Participation</option><option>Learnings</option><option>Others</option>
       </select>
     </div>
-    <div class="form-group">
-      <label>Title</label>
-      <input type="text" id="slot-title" placeholder="e.g. Sprint planning call" />
+    <div class="fg"><label>Title</label><input type="text" id="f-title" placeholder="Enter title"/></div>
+    <div class="fg"><label>Date</label><input type="date" id="f-date"/></div>
+    <div class="fg"><label>Start Time (IST, min 5:00 AM)</label><input type="time" id="f-start"/></div>
+    <div class="fg"><label>End Time (IST, max 11:00 PM)</label><input type="time" id="f-end"/></div>
+    <div class="fg">
+      <label>Description (min 25 words)</label>
+      <textarea id="f-desc" placeholder="Minimum 25 words..." oninput="wc('f-desc','f-wc')"></textarea>
+      <div class="wc" id="f-wc">0 / 25 words</div>
     </div>
-    <div class="form-group">
-      <label>Date</label>
-      <input type="date" id="slot-date" />
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Start Time (IST)</label>
-        <input type="time" id="slot-start" min="05:00" max="23:00" />
-      </div>
-      <div class="form-group">
-        <label>End Time (IST)</label>
-        <input type="time" id="slot-end" min="05:00" max="23:00" />
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Description <span style="color:var(--muted)">(min 25 words)</span></label>
-      <textarea id="slot-desc" placeholder="Describe the purpose of this slot…" oninput="updateWordCount()"></textarea>
-      <div class="word-count" id="word-count">0 / 25 words</div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal('slot-modal')">Cancel</button>
-      <button class="btn-submit" id="slot-submit" onclick="saveSlot()" disabled>Save Slot</button>
+    <div class="form-err" id="slot-err"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('slot-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitSlot()">Save</button>
     </div>
   </div>
 </div>
 
 <!-- RESCHEDULE MODAL -->
-<div class="modal-overlay" id="reschedule-modal">
+<div class="overlay" id="rs-modal">
   <div class="modal">
     <h2>Reschedule Slot</h2>
-    <input type="hidden" id="reschedule-id" />
-    <div class="form-group">
-      <label>New Date</label>
-      <input type="date" id="reschedule-date" />
+    <div class="fg"><label>New Date</label><input type="date" id="rs-date"/></div>
+    <div class="fg"><label>New Start Time</label><input type="time" id="rs-start"/></div>
+    <div class="fg"><label>New End Time</label><input type="time" id="rs-end"/></div>
+    <div class="form-err" id="rs-err"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('rs-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmReschedule()">Reschedule</button>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>New Start Time</label>
-        <input type="time" id="reschedule-start" />
-      </div>
-      <div class="form-group">
-        <label>New End Time</label>
-        <input type="time" id="reschedule-end" />
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal('reschedule-modal')">Cancel</button>
-      <button class="btn-submit" onclick="confirmReschedule()">Reschedule</button>
-    </div>
-  </div>
-</div>
-
-<!-- REQUESTS DRAWER -->
-<div class="drawer-overlay" id="requests-drawer">
-  <div class="drawer">
-    <div class="drawer-header">
-      <div class="drawer-title">Booking Requests</div>
-      <button class="close-btn" onclick="closeDrawer()">×</button>
-    </div>
-    <div id="requests-list"></div>
   </div>
 </div>
 
 <!-- REMARKS MODAL -->
-<div class="modal-overlay" id="remarks-modal">
+<div class="overlay" id="rmk-modal">
   <div class="modal">
-    <h2 id="remarks-title">Add Remarks</h2>
-    <input type="hidden" id="remarks-req-id" />
-    <input type="hidden" id="remarks-action" />
-    <input type="hidden" id="remarks-visitor-email" />
-    <div class="form-group">
-      <label id="remarks-label">Remarks</label>
-      <textarea id="remarks-text" placeholder="Type your message…"></textarea>
+    <h2 id="rmk-title">Add Remarks</h2>
+    <div class="fg">
+      <label id="rmk-label">Remarks</label>
+      <textarea id="rmk-input" placeholder="Optional..."></textarea>
     </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal('remarks-modal')">Cancel</button>
-      <button class="btn-submit" onclick="submitRemarks()">Confirm</button>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('rmk-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmRemarks()">Confirm</button>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-
 <script>
-// ── CONFIG ──
-const SUPABASE_URL = 'https://gyznhncbwoopkzxzhwpt.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5em5obmNid29vcGt6eHpod3B0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NzQ2MjAsImV4cCI6MjA5NzE1MDYyMH0.rDCBabevIA_WzAOnj03wzpUsjO73IEc8vc9GAyQX-V4';
-const OWNER_PASSWORD = 'Usharama@7505';
-const GEMINI_PROXY = '/api/gemini';
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const SB_URL  = 'https://gyznhncbwoopkzxzhwpt.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5em5obmNid29vcGt6eHpod3B0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NzQ2MjAsImV4cCI6MjA5NzE1MDYyMH0.rDCBabevIA_WzAOnj03wzpUsjO73IEc8vc9GAyQX-V4';
+const PASS    = 'Usharama@7505';
+const PROXY   = '/api/gemini';
+const sb      = supabase.createClient(SB_URL, SB_KEY);
 
-// ── STATE ──
-let selectedDate = null;
-let calYear, calMonth;
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let calY, calM, selDate = null;
+let editId = null, rsId = null;
+let rmkAction = null, rmkReqId = null, rmkReqData = null;
 let chatHistory = [];
-let scheduleCache = {};
+let eventDates = new Set();
+let allRequests = [];
+let reqFilter = 'pending';
 
-// ── UTILS ──
-const sb = async (path, opts = {}) => {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation', ...opts.headers },
-    ...opts
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function login() {
+  if (document.getElementById('pw-input').value === PASS) {
+    sessionStorage.setItem('ms_auth','1');
+    document.getElementById('pw-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    init();
+  } else {
+    document.getElementById('pw-err').textContent = 'Wrong password';
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const now = ist();
+  calY = now.getFullYear(); calM = now.getMonth();
+  selDate = fmtDate(now);
+  renderCal();
+  await Promise.all([loadEventDates(), loadSlots(), loadStats(), loadReqCount(), loadRequests()]);
+  updateDayLabel();
+}
+
+// ─── IST HELPERS ──────────────────────────────────────────────────────────────
+function ist() { return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})); }
+function fmtDate(d) { return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`; }
+function p2(n) { return String(n).padStart(2,'0'); }
+function fmtTime(t) {
+  if (!t) return '';
+  const [h,m] = t.split(':'); const hr=parseInt(h);
+  return `${hr%12||12}:${m} ${hr>=12?'PM':'AM'} IST`;
+}
+
+// ─── TAB SWITCH ───────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('view-schedule').style.display = tab==='schedule'?'block':'none';
+  document.getElementById('view-requests').style.display = tab==='requests'?'block':'none';
+  document.getElementById('tab-schedule').classList.toggle('active', tab==='schedule');
+  document.getElementById('tab-requests').classList.toggle('active', tab==='requests');
+  if (tab==='requests') loadRequests();
+}
+
+// ─── CALENDAR ────────────────────────────────────────────────────────────────
+async function loadEventDates() {
+  const {data} = await sb.from('schedules').select('date').neq('status','cancelled');
+  eventDates = new Set(data?.map(r=>r.date)||[]);
+  renderCal();
+}
+
+function renderCal() {
+  const lbl = new Date(calY,calM,1).toLocaleString('en-US',{month:'long',year:'numeric'});
+  document.getElementById('cal-label').textContent = lbl;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>{
+    const el=document.createElement('div'); el.className='cal-dname'; el.textContent=d; grid.appendChild(el);
   });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.message || 'DB error'); }
-  return r.json();
+  const first = new Date(calY,calM,1).getDay();
+  const total = new Date(calY,calM+1,0).getDate();
+  const today = fmtDate(ist());
+  for(let i=0;i<first;i++){const e=document.createElement('div');e.className='cal-day cal-empty';grid.appendChild(e);}
+  for(let d=1;d<=total;d++){
+    const ds=`${calY}-${p2(calM+1)}-${p2(d)}`;
+    const el=document.createElement('div'); el.className='cal-day'; el.textContent=d;
+    if(ds===today) el.classList.add('cal-today');
+    if(ds===selDate) el.classList.add('cal-selected');
+    if(eventDates.has(ds)) el.classList.add('cal-has-event');
+    el.onclick=()=>selectDate(ds);
+    grid.appendChild(el);
+  }
+}
+
+function calMonth(d){ calM+=d; if(calM<0){calM=11;calY--} if(calM>11){calM=0;calY++} renderCal(); }
+
+function selectDate(ds){
+  selDate=ds; renderCal(); updateDayLabel(); loadSlots();
+}
+
+function updateDayLabel(){
+  if(!selDate){document.getElementById('day-label').textContent='Select a date';return;}
+  const [y,m,d]=selDate.split('-');
+  document.getElementById('day-label').textContent=
+    new Date(y,m-1,d).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+// ─── SLOTS ────────────────────────────────────────────────────────────────────
+async function loadSlots(){
+  if(!selDate){return;}
+  const {data}=await sb.from('schedules').select('*').eq('date',selDate).order('start_time');
+  const el=document.getElementById('slots-list');
+  if(!data||!data.length){el.innerHTML='<div class="no-data">No slots for this date</div>';return;}
+  el.innerHTML=data.map(s=>`
+    <div class="slot-card ${s.status}">
+      <span class="cat-badge cat-${s.category}">${s.category}</span>
+      <div class="slot-title">${s.title}</div>
+      <div class="slot-time">${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</div>
+      <div class="slot-desc">${s.description||''}</div>
+      <div style="font-size:.78rem;color:#64748b">
+        <span class="status-pill pill-${s.status}">${s.status}</span>
+        ${s.visitor_name?'• Visitor: '+s.visitor_name:''}
+      </div>
+      <div class="slot-actions">
+        ${s.status!=='completed'&&s.status!=='cancelled'?`
+          <button class="btn btn-success btn-sm" onclick="doComplete('${s.id}')">✓ Done</button>
+          <button class="btn btn-ghost btn-sm" onclick="doEdit(${JSON.stringify(s).replace(/"/g,'&quot;')})">✎ Edit</button>
+          <button class="btn btn-warning btn-sm" onclick="doReschedule('${s.id}')">⟳ Reschedule</button>
+          <button class="btn btn-danger btn-sm" onclick="doCancel('${s.id}')">✕ Cancel</button>
+        `:`<span style="color:#64748b;font-size:.78rem">${s.status==='completed'?'✓ Completed':'✕ Cancelled'}</span>`}
+      </div>
+    </div>`).join('');
+}
+
+async function loadStats(){
+  const {data}=await sb.from('schedules').select('status');
+  document.getElementById('s-completed').textContent=data?.filter(r=>r.status==='completed').length||0;
+  document.getElementById('s-rescheduled').textContent=data?.filter(r=>r.status==='rescheduled').length||0;
+  document.getElementById('s-cancelled').textContent=data?.filter(r=>r.status==='cancelled').length||0;
+}
+
+async function doComplete(id){
+  await sb.from('schedules').update({status:'completed',updated_at:new Date().toISOString()}).eq('id',id);
+  loadSlots();loadStats();
+}
+
+async function doCancel(id){
+  if(!confirm('Cancel this slot?'))return;
+  await sb.from('schedules').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',id);
+  loadSlots();loadStats();loadEventDates();
+}
+
+function doReschedule(id){ rsId=id; document.getElementById('rs-date').value=selDate||''; document.getElementById('rs-err').textContent=''; openModal('rs-modal'); }
+
+async function confirmReschedule(){
+  const date=document.getElementById('rs-date').value;
+  const start=document.getElementById('rs-start').value;
+  const end=document.getElementById('rs-end').value;
+  if(!date||!start||!end){document.getElementById('rs-err').textContent='All fields required';return;}
+  if(end<=start){document.getElementById('rs-err').textContent='End must be after start';return;}
+  if(await hasOverlap(date,start,end,rsId)){document.getElementById('rs-err').textContent='Overlaps existing slot!';return;}
+  await sb.from('schedules').update({date,start_time:start,end_time:end,status:'rescheduled',updated_at:new Date().toISOString()}).eq('id',rsId);
+  closeModal('rs-modal');loadSlots();loadStats();loadEventDates();
+}
+
+function doEdit(s){
+  editId=s.id;
+  document.getElementById('slot-modal-title').textContent='Edit Slot';
+  document.getElementById('f-cat').value=s.category;
+  document.getElementById('f-title').value=s.title;
+  document.getElementById('f-date').value=s.date;
+  document.getElementById('f-start').value=(s.start_time||'').slice(0,5);
+  document.getElementById('f-end').value=(s.end_time||'').slice(0,5);
+  document.getElementById('f-desc').value=s.description||'';
+  document.getElementById('slot-err').textContent='';
+  wc('f-desc','f-wc');
+  openModal('slot-modal');
+}
+
+function openAddModal(){
+  editId=null;
+  document.getElementById('slot-modal-title').textContent='Add to Schedule';
+  document.getElementById('f-title').value='';document.getElementById('f-desc').value='';
+  document.getElementById('f-date').value=selDate||fmtDate(ist());
+  document.getElementById('f-start').value='';document.getElementById('f-end').value='';
+  document.getElementById('slot-err').textContent='';
+  document.getElementById('f-wc').textContent='0 / 25 words';
+  document.getElementById('f-wc').className='wc';
+  openModal('slot-modal');
+}
+
+async function submitSlot(){
+  const cat=document.getElementById('f-cat').value;
+  const title=document.getElementById('f-title').value.trim();
+  const date=document.getElementById('f-date').value;
+  const start=document.getElementById('f-start').value;
+  const end=document.getElementById('f-end').value;
+  const desc=document.getElementById('f-desc').value.trim();
+  const err=document.getElementById('slot-err');
+  if(!title||!date||!start||!end||!desc){err.textContent='All fields required';return;}
+  if(end<=start){err.textContent='End must be after start';return;}
+  if(start<'05:00'){err.textContent='Start must be 5:00 AM or later';return;}
+  if(end>'23:00'){err.textContent='End must be 11:00 PM or earlier';return;}
+  if(desc.trim().split(/\s+/).filter(Boolean).length<25){err.textContent='Description needs 25+ words';return;}
+  if(await hasOverlap(date,start,end,editId)){err.textContent='Overlaps existing slot!';return;}
+  if(editId){
+    await sb.from('schedules').update({category:cat,title,date,start_time:start,end_time:end,description:desc,updated_at:new Date().toISOString()}).eq('id',editId);
+  } else {
+    await sb.from('schedules').insert([{category:cat,title,date,start_time:start,end_time:end,description:desc,status:'upcoming',created_by:'owner'}]);
+  }
+  closeModal('slot-modal');loadSlots();loadEventDates();loadStats();
+}
+
+async function hasOverlap(date,start,end,excludeId=null){
+  let q=sb.from('schedules').select('id').eq('date',date).neq('status','cancelled').lt('start_time',end).gt('end_time',start);
+  if(excludeId) q=q.neq('id',excludeId);
+  const {data}=await q;
+  return data&&data.length>0;
+}
+
+// ─── CANCEL HISTORY ───────────────────────────────────────────────────────────
+let chVisible=false;
+async function toggleHistory(){
+  chVisible=!chVisible;
+  const el=document.getElementById('ch-list');
+  el.style.display=chVisible?'block':'none';
+  if(!chVisible)return;
+  const {data}=await sb.from('schedules').select('*').eq('status','cancelled').order('updated_at',{ascending:false});
+  el.innerHTML=data?.length?data.map(s=>`
+    <div class="ch-item">
+      <strong>${s.title}</strong><br>
+      <span style="color:#94a3b8;font-size:.78rem">${s.date} • ${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</span>
+    </div>`).join(''):'<p style="color:#64748b;margin-top:8px">No cancelled slots</p>';
+}
+
+// ─── REQUESTS ─────────────────────────────────────────────────────────────────
+async function loadReqCount(){
+  const {count}=await sb.from('booking_requests').select('*',{count:'exact',head:true}).eq('status','pending');
+  document.getElementById('req-badge').textContent=count||0;
+}
+
+async function loadRequests(){
+  const {data}=await sb.from('booking_requests').select('*').order('created_at',{ascending:false});
+  allRequests=data||[];
+  renderRequests();
+}
+
+function filterReqs(f){
+  reqFilter=f;
+  document.getElementById('rt-pending').classList.toggle('active',f==='pending');
+  document.getElementById('rt-all').classList.toggle('active',f==='all');
+  renderRequests();
+}
+
+function renderRequests(){
+  const list=document.getElementById('reqs-list');
+  const filtered=reqFilter==='pending'?allRequests.filter(r=>r.status==='pending'):allRequests;
+  if(!filtered.length){list.innerHTML='<div class="no-data">No requests found</div>';return;}
+
+  const pending=allRequests.filter(r=>r.status==='pending');
+  list.innerHTML=filtered.map(r=>{
+    const isPending=r.status==='pending';
+    const conflict=isPending&&pending.some(p=>p.id!==r.id&&p.requested_date===r.requested_date&&p.start_time<r.end_time&&p.end_time>r.start_time);
+    return `<div class="req-card ${conflict?'conflict':''}">
+      ${conflict?'<div class="conflict-warn">⚠ Another request overlaps this time slot</div>':''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <strong>${r.visitor_name}</strong>
+        <span class="status-badge s-${r.status}">${r.status.replace(/_/g,' ')}</span>
+      </div>
+      <div class="req-meta">📧 ${r.visitor_email}</div>
+      <div class="req-meta">📅 ${r.requested_date} • ${fmtTime(r.start_time)} – ${fmtTime(r.end_time)}</div>
+      <div class="req-desc">${r.description}</div>
+      ${r.owner_remarks?`<div style="font-size:.8rem;color:#94a3b8;font-style:italic">Your note: ${r.owner_remarks}</div>`:''}
+      ${isPending?`<div class="req-actions">
+        <button class="btn btn-success btn-sm" onclick="reqAction('${r.id}','accept')">✓ Accept</button>
+        <button class="btn btn-ghost btn-sm" onclick="reqAction('${r.id}','accept_remarks')">Accept + Remarks</button>
+        <button class="btn btn-warning btn-sm" onclick="reqAction('${r.id}','reschedule')">⟳ Request Reschedule</button>
+        <button class="btn btn-danger btn-sm" onclick="reqAction('${r.id}','decline')">✕ Decline</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function reqAction(id,action){
+  const req=allRequests.find(r=>r.id===id);
+  if(!req)return;
+
+  if(action==='accept'){
+    if(!confirm('Accept this booking?'))return;
+    await acceptReq(id,req,null);
+  } else {
+    rmkAction=action; rmkReqId=id; rmkReqData=req;
+    const titles={accept_remarks:'Accept with Remarks',reschedule:'Request Reschedule',decline:'Decline Request'};
+    const labels={accept_remarks:'Add a note for the visitor:',reschedule:'Explain why and suggest a new time:',decline:'Reason (optional):'};
+    document.getElementById('rmk-title').textContent=titles[action];
+    document.getElementById('rmk-label').textContent=labels[action];
+    document.getElementById('rmk-input').value='';
+    openModal('rmk-modal');
+  }
+}
+
+async function confirmRemarks(){
+  const remarks=document.getElementById('rmk-input').value.trim();
+  closeModal('rmk-modal');
+  const {rmkAction:action,rmkReqId:id,rmkReqData:req}=window;
+
+  if(action==='accept_remarks'){
+    await acceptReq(id,req,remarks);
+  } else if(action==='reschedule'){
+    await sb.from('booking_requests').update({status:'reschedule_requested',owner_remarks:remarks,updated_at:new Date().toISOString()}).eq('id',id);
+    sendEmail(req.visitor_email,'Meeting Reschedule Requested — MyScheduler',req.visitor_name,
+      `<p>The owner has requested to reschedule your meeting on <strong>${req.requested_date}</strong>.</p><p><strong>Owner's message:</strong> ${remarks||'No additional message.'}</p><p>Please book a new time slot.</p>`);
+  } else if(action==='decline'){
+    await sb.from('booking_requests').update({status:'declined',owner_remarks:remarks||null,updated_at:new Date().toISOString()}).eq('id',id);
+    sendEmail(req.visitor_email,'Meeting Request Declined — MyScheduler',req.visitor_name,
+      `<p>Your meeting request for <strong>${req.requested_date} at ${fmtTime(req.start_time)}</strong> has been declined.</p>${remarks?`<p><strong>Reason:</strong> ${remarks}</p>`:''}`);
+  }
+
+  await loadReqCount();
+  await loadRequests();
+  await loadSlots();
+  await loadEventDates();
+}
+
+async function acceptReq(id,req,remarks){
+  const ov=await hasOverlap(req.requested_date,(req.start_time||'').slice(0,5),(req.end_time||'').slice(0,5));
+  if(ov){alert('This time is already booked! Cannot accept.');return;}
+
+  await sb.from('schedules').insert([{
+    category:'Meeting',title:`Meeting with ${req.visitor_name}`,
+    date:req.requested_date,start_time:req.start_time,end_time:req.end_time,
+    description:req.description,status:'upcoming',created_by:'visitor',
+    visitor_name:req.visitor_name,visitor_email:req.visitor_email
+  }]);
+
+  const status=remarks?'accepted_with_remarks':'accepted';
+  await sb.from('booking_requests').update({status,owner_remarks:remarks||null,updated_at:new Date().toISOString()}).eq('id',id);
+
+  const msg=remarks
+    ?`<p>Your meeting has been <strong>accepted</strong>!</p><p><strong>Date:</strong> ${req.requested_date}</p><p><strong>Time:</strong> ${fmtTime(req.start_time)} – ${fmtTime(req.end_time)}</p><p><strong>Owner's note:</strong> ${remarks}</p>`
+    :`<p>Your meeting has been <strong>accepted</strong>!</p><p><strong>Date:</strong> ${req.requested_date}</p><p><strong>Time:</strong> ${fmtTime(req.start_time)} – ${fmtTime(req.end_time)}</p><p>See you then!</p>`;
+  sendEmail(req.visitor_email,'Meeting Accepted — MyScheduler',req.visitor_name,msg);
+
+  await loadReqCount();
+  await loadRequests();
+  await loadSlots();
+  await loadEventDates();
+  await loadStats();
+}
+
+async function sendEmail(to,subject,visitorName,bodyHtml){
+  try {
+    await fetch(PROXY,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'email',to,subject,
+        html:`<div style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px;background:#f8fafc;border-radius:12px">
+          <h2 style="color:#6366f1">MyScheduler</h2>
+          <p>Hi <strong>${visitorName}</strong>,</p>
+          ${bodyHtml}
+          <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0"/>
+          <p style="color:#94a3b8;font-size:.85rem">MyScheduler — Automated email</p>
+        </div>`
+      })
+    });
+  } catch(e){console.log('Email error:',e);}
+}
+
+// ─── COPY LINK ────────────────────────────────────────────────────────────────
+function copyLink(){
+  navigator.clipboard.writeText(window.location.origin+'/book').then(()=>{
+    const el=document.getElementById('copy-ok');
+    el.style.display='inline';
+    setTimeout(()=>el.style.display='none',2000);
+  });
+}
+
+// ─── AI CHAT ──────────────────────────────────────────────────────────────────
+async function sendChat(){
+  const inp=document.getElementById('chat-in');
+  const msg=inp.value.trim(); if(!msg)return;
+  inp.value='';
+  addMsg('user',msg);
+  chatHistory.push({role:'user',content:msg});
+
+  const typing=addMsg('ai','⋯ thinking...');
+
+  const today=fmtDate(ist());
+  const {data:sched}=await sb.from('schedules').select('*').gte('date',today).order('date').order('start_time').limit(30);
+  const {data:reqs}=await sb.from('booking_requests').select('*').eq('status','pending');
+
+  const schedText=sched?.length?sched.map(s=>`[${s.date} ${(s.start_time||'').slice(0,5)}-${(s.end_time||'').slice(0,5)}] ${s.title} | ${s.category} | ${s.status} | id:${s.id}`).join('\n'):'No upcoming events';
+  const reqText=reqs?.length?reqs.map(r=>`${r.visitor_name} (${r.visitor_email}): ${r.requested_date} ${(r.start_time||'').slice(0,5)}-${(r.end_time||'').slice(0,5)} — ${r.description.slice(0,60)}`).join('\n'):'None';
+
+  const sys=`You are MyScheduler, an AI assistant for the owner managing their schedule.
+IST now: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}
+Working hours: 5:00 AM – 11:00 PM IST.
+
+UPCOMING SCHEDULE:
+${schedText}
+
+PENDING BOOKING REQUESTS:
+${reqText}
+
+INSTRUCTIONS:
+- Answer schedule questions accurately from data above
+- For FREE SLOTS: check what's booked and describe the gaps
+- For BOOKING: require title + 25-word description, confirm before acting
+- For CANCELLING/RESCHEDULING: confirm first, then use action tag
+- Reject requests outside 5AM-11PM
+- Always show times in IST
+- After user confirms a write action, append ONE action tag:
+  [ACTION:book|date:YYYY-MM-DD|start:HH:MM|end:HH:MM|title:TITLE|category:Meeting|desc:DESCRIPTION]
+  [ACTION:cancel|id:SLOT_UUID]
+  [ACTION:reschedule|id:SLOT_UUID|date:YYYY-MM-DD|start:HH:MM|end:HH:MM]`;
+
+  try {
+    const r=await fetch(PROXY,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:chatHistory.slice(-10),systemPrompt:sys})
+    });
+    const d=await r.json();
+    const reply=d.response||'Sorry, no response received.';
+    typing.remove();
+    addMsg('ai',reply.replace(/\[ACTION:[^\]]+\]/g,'').trim());
+    chatHistory.push({role:'assistant',content:reply});
+
+    const am=reply.match(/\[ACTION:([^\]]+)\]/);
+    if(am) await execChatAction(am[1]);
+  } catch(e){
+    typing.remove();
+    addMsg('ai','⚠ Error connecting to AI. Check your internet connection and try again.');
+  }
+}
+
+async function execChatAction(str){
+  const p={};
+  str.split('|').forEach(kv=>{const i=kv.indexOf(':');if(i>0){p[kv.slice(0,i)]=kv.slice(i+1);}});
+
+  if(p.ACTION==='book'){
+    if(await hasOverlap(p.date,p.start,p.end)){addMsg('ai','⚠ Cannot book — that time overlaps an existing slot!');return;}
+    await sb.from('schedules').insert([{
+      category:p.category||'Meeting',title:p.title,date:p.date,
+      start_time:p.start,end_time:p.end,description:p.desc,
+      status:'upcoming',created_by:'owner'
+    }]);
+    addMsg('ai','✅ Slot booked and added to your calendar!');
+    loadSlots();loadEventDates();loadStats();
+  } else if(p.ACTION==='cancel'){
+    await sb.from('schedules').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',p.id);
+    addMsg('ai','✅ Slot cancelled.');
+    loadSlots();loadStats();loadEventDates();
+  } else if(p.ACTION==='reschedule'){
+    if(await hasOverlap(p.date,p.start,p.end,p.id)){addMsg('ai','⚠ Cannot reschedule — overlaps another slot!');return;}
+    await sb.from('schedules').update({date:p.date,start_time:p.start,end_time:p.end,status:'rescheduled',updated_at:new Date().toISOString()}).eq('id',p.id);
+    addMsg('ai','✅ Slot rescheduled!');
+    loadSlots();loadStats();loadEventDates();
+  }
+}
+
+function addMsg(role,text){
+  const c=document.getElementById('chat-msgs');
+  const div=document.createElement('div');
+  div.className=`msg-${role}`;
+  div.innerHTML=`<div class="bubble">${text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div>`;
+  c.appendChild(div);
+  c.scrollTop=c.scrollHeight;
+  return div;
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function wc(tid,wid){
+  const t=document.getElementById(tid).value.trim();
+  const n=t?t.split(/\s+/).filter(Boolean).length:0;
+  const el=document.getElementById(wid);
+  el.textContent=`${n} / 25 words`;
+  el.className=n>=25?'wc ok':'wc';
+}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// Click outside modal to close
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('overlay')) e.target.classList.remove('open');
+});
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+window.onload=()=>{
+  if(sessionStorage.getItem('ms_auth')){
+    document.getElementById('pw-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    init();
+  }
 };
 
-function toIST(dateStr, timeStr) {
-  return `${dateStr}T${timeStr}:00+05:30`;
-}
-
-function nowIST() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-}
-
-function formatIST(date) {
-  return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
-}
-
-function showToast(msg, type = 'success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = `toast ${type} show`;
-  setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-// ── PASSWORD ──
-function checkPassword() {
-  const val = document.getElementById('pw-input').value;
-  if (val === OWNER_PASSWORD) {
-    sessionStorage.setItem('ms_auth', '1');
-    document.getElementById('password-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    initApp();
-  } else {
-    document.getElementById('pw-error').style.display = 'block';
-  }
-}
-
-document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPassword(); });
-
-// Check session
-if (sessionStorage.getItem('ms_auth') === '1') {
-  document.getElementById('password-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  initApp();
-}
-
-// ── INIT ──
-function initApp() {
-  const now = nowIST();
-  calYear = now.getFullYear(); calMonth = now.getMonth();
-  const label = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('today-label').textContent = label;
-  renderCalendar();
-  loadStats();
-  loadPendingCount();
-  // Auto-select today
-  const today = now.toISOString().split('T')[0];
-  selectDate(today);
-}
-
-// ── CALENDAR ──
-function renderCalendar() {
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  document.getElementById('cal-month-label').textContent = `${months[calMonth]} ${calYear}`;
-
-  const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-  const grid = document.getElementById('cal-grid');
-  grid.innerHTML = days.map(d => `<div class="cal-dow">${d}</div>`).join('');
-
-  const first = new Date(calYear, calMonth, 1).getDay();
-  const total = new Date(calYear, calMonth + 1, 0).getDate();
-  const today = nowIST();
-  const todayStr = today.toISOString().split('T')[0];
-
-  for (let i = 0; i < first; i++) grid.innerHTML += `<div class="cal-day empty"></div>`;
-
-  for (let d = 1; d <= total; d++) {
-    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isPast = dateStr < todayStr;
-    const isToday = dateStr === todayStr;
-    const isSelected = dateStr === selectedDate;
-    const hasDot = scheduleCache[dateStr];
-    grid.innerHTML += `<div class="cal-day ${isPast?'past':''} ${isToday&&!isSelected?'today':''} ${isSelected?'selected':''}" ${!isPast?`onclick="selectDate('${dateStr}')"`:''}>
-      ${d}${hasDot?'<span class="dot"></span>':''}
-    </div>`;
-  }
-}
-
-function changeMonth(dir) {
-  calMonth += dir;
-  if (calMonth < 0) { calMonth = 11; calYear--; }
-  if (calMonth > 11) { calMonth = 0; calYear++; }
-  renderCalendar();
-}
-
-async function selectDate(dateStr) {
-  selectedDate = dateStr;
-  renderCalendar();
-  const label = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-  document.getElementById('schedule-date-label').textContent = label;
-  document.getElementById('slot-date').value = dateStr;
-  await loadSchedule(dateStr);
-}
-
-// ── SCHEDULE ──
-async function loadSchedule(date) {
-  const list = document.getElementById('schedule-list');
-  list.innerHTML = '<div class="empty">Loading…</div>';
-  try {
-    const rows = await sb(`schedules?date=eq.${date}&order=start_time.asc`);
-    scheduleCache[date] = rows.length > 0;
-    renderCalendar();
-    if (!rows.length) {
-      list.innerHTML = '<div class="empty"><div class="icon">✨</div>No slots for this day</div>';
-      return;
-    }
-    list.innerHTML = rows.map(s => slotHTML(s)).join('');
-  } catch (e) {
-    list.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
-  }
-}
-
-function slotHTML(s) {
-  const isDone = s.status === 'completed' || s.status === 'cancelled';
-  return `<div class="slot-card status-${s.status}" id="slot-${s.id}">
-    <div class="slot-top">
-      <div class="slot-title">${s.title}</div>
-    </div>
-    <div class="slot-time">🕐 ${s.start_time.slice(0,5)} – ${s.end_time.slice(0,5)} IST</div>
-    <div class="slot-badges">
-      <span class="badge-cat">${s.category}</span>
-      <span class="badge-status ${s.status === 'upcoming' ? 'status-upcoming' : s.status === 'completed' ? 'status-completed' : s.status === 'cancelled' ? 'status-cancelled' : 'status-rescheduled'}">${s.status}</span>
-    </div>
-    <div class="slot-actions">
-      <button class="slot-btn complete" onclick="completeSlot('${s.id}')" ${isDone?'disabled':''}>✓ Complete</button>
-      <button class="slot-btn" onclick="openEditModal(${JSON.stringify(s).replace(/"/g,'&quot;')})" ${isDone?'disabled':''}>✎ Edit</button>
-      <button class="slot-btn" onclick="openReschedule('${s.id}')" ${isDone?'disabled':''}>↺ Reschedule</button>
-      <button class="slot-btn cancel" onclick="cancelSlot('${s.id}')" ${isDone?'disabled':''}>✕ Cancel</button>
-    </div>
-  </div>`;
-}
-
-async function completeSlot(id) {
-  try {
-    await sb(`schedules?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed', updated_at: new Date().toISOString() }) });
-    showToast('Marked as completed ✓');
-    loadSchedule(selectedDate); loadStats();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-async function cancelSlot(id) {
-  if (!confirm('Cancel this slot?')) return;
-  try {
-    await sb(`schedules?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }) });
-    showToast('Slot cancelled');
-    loadSchedule(selectedDate); loadStats();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-// ── ADD/EDIT MODAL ──
-function openAddModal() {
-  document.getElementById('modal-title').textContent = 'Add to Schedule';
-  document.getElementById('edit-id').value = '';
-  document.getElementById('slot-category').value = 'Meeting';
-  document.getElementById('slot-title').value = '';
-  document.getElementById('slot-date').value = selectedDate || '';
-  document.getElementById('slot-start').value = '';
-  document.getElementById('slot-end').value = '';
-  document.getElementById('slot-desc').value = '';
-  updateWordCount();
-  document.getElementById('slot-modal').classList.add('open');
-}
-
-function openEditModal(s) {
-  document.getElementById('modal-title').textContent = 'Edit Slot';
-  document.getElementById('edit-id').value = s.id;
-  document.getElementById('slot-category').value = s.category;
-  document.getElementById('slot-title').value = s.title;
-  document.getElementById('slot-date').value = s.date;
-  document.getElementById('slot-start').value = s.start_time.slice(0,5);
-  document.getElementById('slot-end').value = s.end_time.slice(0,5);
-  document.getElementById('slot-desc').value = s.description || '';
-  updateWordCount();
-  document.getElementById('slot-modal').classList.add('open');
-}
-
-function updateWordCount() {
-  const text = document.getElementById('slot-desc').value.trim();
-  const words = text ? text.split(/\s+/).length : 0;
-  const wc = document.getElementById('word-count');
-  wc.textContent = `${words} / 25 words`;
-  wc.className = `word-count ${words < 25 ? 'warn' : ''}`;
-
-  const title = document.getElementById('slot-title').value.trim();
-  const date = document.getElementById('slot-date').value;
-  const start = document.getElementById('slot-start').value;
-  const end = document.getElementById('slot-end').value;
-  document.getElementById('slot-submit').disabled = !(title && date && start && end && words >= 25);
-}
-
-['slot-title','slot-date','slot-start','slot-end'].forEach(id => {
-  document.getElementById(id).addEventListener('input', updateWordCount);
-});
-
-async function saveSlot() {
-  const id = document.getElementById('edit-id').value;
-  const date = document.getElementById('slot-date').value;
-  const start = document.getElementById('slot-start').value;
-  const end = document.getElementById('slot-end').value;
-
-  if (end <= start) { showToast('End time must be after start time', 'error'); return; }
-
-  const startH = parseInt(start.split(':')[0]);
-  const endH = parseInt(end.split(':')[0]);
-  if (startH < 5 || endH > 23) { showToast('Working hours: 5:00 AM – 11:00 PM', 'error'); return; }
-
-  // Check overlap
-  try {
-    const existing = await sb(`schedules?date=eq.${date}&status=neq.cancelled${id ? `&id=neq.${id}` : ''}`);
-    for (const s of existing) {
-      if (start < s.end_time && end > s.start_time) {
-        showToast('Time overlaps with existing slot!', 'error'); return;
-      }
-    }
-
-    const payload = {
-      category: document.getElementById('slot-category').value,
-      title: document.getElementById('slot-title').value.trim(),
-      date, start_time: start, end_time: end,
-      description: document.getElementById('slot-desc').value.trim(),
-      updated_at: new Date().toISOString()
-    };
-
-    if (id) {
-      await sb(`schedules?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
-      showToast('Slot updated ✓');
-    } else {
-      payload.status = 'upcoming'; payload.created_by = 'owner';
-      await sb('schedules', { method: 'POST', body: JSON.stringify(payload) });
-      showToast('Slot added ✓');
-    }
-
-    closeModal('slot-modal');
-    loadSchedule(selectedDate);
-    scheduleCache = {};
-    renderCalendar();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-// ── RESCHEDULE ──
-function openReschedule(id) {
-  document.getElementById('reschedule-id').value = id;
-  document.getElementById('reschedule-modal').classList.add('open');
-}
-
-async function confirmReschedule() {
-  const id = document.getElementById('reschedule-id').value;
-  const date = document.getElementById('reschedule-date').value;
-  const start = document.getElementById('reschedule-start').value;
-  const end = document.getElementById('reschedule-end').value;
-
-  if (!date || !start || !end) { showToast('Fill all fields', 'error'); return; }
-  if (end <= start) { showToast('End must be after start', 'error'); return; }
-
-  try {
-    const existing = await sb(`schedules?date=eq.${date}&status=neq.cancelled&id=neq.${id}`);
-    for (const s of existing) {
-      if (start < s.end_time && end > s.start_time) { showToast('Overlaps with existing slot!', 'error'); return; }
-    }
-    await sb(`schedules?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ date, start_time: start, end_time: end, status: 'rescheduled', updated_at: new Date().toISOString() }) });
-    showToast('Slot rescheduled ✓');
-    closeModal('reschedule-modal');
-    loadSchedule(selectedDate);
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-// ── STATS ──
-async function loadStats() {
-  try {
-    const rows = await sb('schedules?select=status');
-    const completed = rows.filter(r => r.status === 'completed').length;
-    const rescheduled = rows.filter(r => r.status === 'rescheduled').length;
-    const cancelled = rows.filter(r => r.status === 'cancelled').length;
-
-    const statsArea = document.getElementById('stats-area');
-    statsArea.innerHTML = `
-      <div class="stats-row">
-        <div class="stat-card"><div class="stat-val" style="color:var(--green)">${completed}</div><div class="stat-lbl">Completed</div></div>
-        <div class="stat-card"><div class="stat-val" style="color:var(--yellow)">${rescheduled}</div><div class="stat-lbl">Rescheduled</div></div>
-        <div class="stat-card"><div class="stat-val" style="color:var(--red)">${cancelled}</div><div class="stat-lbl">Cancelled</div></div>
-      </div>
-      <div class="cancel-history">
-        <button class="cancel-toggle" onclick="toggleCancelHistory()">📋 Cancellation History</button>
-        <div class="cancel-list" id="cancel-list" style="display:none"></div>
-      </div>`;
-  } catch(e) {}
-}
-
-async function toggleCancelHistory() {
-  const list = document.getElementById('cancel-list');
-  if (list.style.display === 'none') {
-    list.style.display = 'flex';
-    try {
-      const rows = await sb('schedules?status=eq.cancelled&order=date.desc');
-      list.innerHTML = rows.length
-        ? rows.map(r => `<div class="cancel-item"><strong>${r.title}</strong> — ${r.date} ${r.start_time.slice(0,5)}–${r.end_time.slice(0,5)}</div>`).join('')
-        : '<div style="color:var(--muted);font-size:13px;padding:8px">No cancellations yet</div>';
-    } catch(e) { list.innerHTML = '<div style="color:var(--red)">Error loading</div>'; }
-  } else {
-    list.style.display = 'none';
-  }
-}
-
-// ── BOOKING LINK ──
-function copyBookingLink() {
-  const url = `${location.origin}/book`;
-  navigator.clipboard.writeText(url).then(() => showToast('Link copied! 🔗', 'info'));
-}
-
-// ── REQUESTS DRAWER ──
-async function loadPendingCount() {
-  try {
-    const rows = await sb('booking_requests?status=eq.pending&select=id');
-    const badge = document.getElementById('req-badge');
-    if (rows.length) { badge.textContent = rows.length; badge.style.display = 'flex'; }
-    else badge.style.display = 'none';
-  } catch(e) {}
-}
-
-async function openDrawer() {
-  document.getElementById('requests-drawer').classList.add('open');
-  const list = document.getElementById('requests-list');
-  list.innerHTML = '<div class="empty">Loading…</div>';
-  try {
-    const rows = await sb('booking_requests?order=created_at.desc');
-    if (!rows.length) { list.innerHTML = '<div class="empty"><div class="icon">📭</div>No requests yet</div>'; return; }
-
-    // Detect conflicts
-    const pending = rows.filter(r => r.status === 'pending');
-    const conflicts = new Set();
-    for (let i = 0; i < pending.length; i++) {
-      for (let j = i+1; j < pending.length; j++) {
-        if (pending[i].requested_date === pending[j].requested_date &&
-            pending[i].start_time < pending[j].end_time &&
-            pending[i].end_time > pending[j].start_time) {
-          conflicts.add(pending[i].id);
-          conflicts.add(pending[j].id);
-        }
-      }
-    }
-
-    list.innerHTML = rows.map(r => `
-      <div class="request-card">
-        ${conflicts.has(r.id) ? '<div class="conflict-warn">⚠ Another request exists for this time slot</div>' : ''}
-        <div class="req-name">${r.visitor_name}</div>
-        <div class="req-email">${r.visitor_email}</div>
-        <div class="req-time">📅 ${r.requested_date} · ${r.start_time.slice(0,5)}–${r.end_time.slice(0,5)}</div>
-        <div class="req-desc">${r.description}</div>
-        <span class="badge-status ${r.status === 'pending' ? 'status-upcoming' : r.status === 'accepted' ? 'status-completed' : 'status-rescheduled'}" style="margin-bottom:10px;display:inline-block">${r.status}</span>
-        ${r.status === 'pending' ? `
-        <div class="req-actions">
-          <button class="req-btn accept" onclick="handleRequest('${r.id}','accept','${r.visitor_email}','${r.requested_date}','${r.start_time}','${r.end_time}','${r.visitor_name}')">✓ Accept</button>
-          <button class="req-btn remarks" onclick="openRemarks('${r.id}','accept_remarks','${r.visitor_email}')">✎ Accept w/ Remarks</button>
-          <button class="req-btn reschedule" onclick="openRemarks('${r.id}','reschedule','${r.visitor_email}')">↺ Request Reschedule</button>
-          <button class="req-btn decline" onclick="openRemarks('${r.id}','decline','${r.visitor_email}')">✕ Decline</button>
-        </div>` : ''}
-      </div>`).join('');
-  } catch(e) { list.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
-}
-
-function closeDrawer() { document.getElementById('requests-drawer').classList.remove('open'); }
-
-async function handleRequest(id, action, email, date, start, end, name) {
-  try {
-    if (action === 'accept') {
-      // Check overlap
-      const existing = await sb(`schedules?date=eq.${date}&status=neq.cancelled`);
-      for (const s of existing) {
-        if (start < s.end_time && end > s.start_time) { showToast('Overlaps with existing slot!', 'error'); return; }
-      }
-      await sb('schedules', { method: 'POST', body: JSON.stringify({ date, start_time: start, end_time: end, title: `Meeting with ${name}`, category: 'Meeting', description: 'Accepted visitor request', status: 'upcoming', created_by: 'visitor', visitor_name: name, visitor_email: email }) });
-      await sb(`booking_requests?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'accepted', updated_at: new Date().toISOString() }) });
-      showToast('Request accepted ✓');
-      sendEmail(email, 'Your booking request was accepted!', `<p>Hi! Your meeting request for <b>${date}</b> at <b>${start.slice(0,5)}</b> has been accepted. See you then!</p>`);
-    }
-    openDrawer(); loadPendingCount(); scheduleCache = {}; renderCalendar();
-    if (selectedDate === date) loadSchedule(date);
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-function openRemarks(id, action, email) {
-  document.getElementById('remarks-req-id').value = id;
-  document.getElementById('remarks-action').value = action;
-  document.getElementById('remarks-visitor-email').value = email;
-  const labels = { accept_remarks: ['Accept with Remarks', 'Your remarks'], reschedule: ['Request Reschedule', 'Suggest a new time and reason'], decline: ['Decline Request', 'Reason for declining (optional)'] };
-  const [title, label] = labels[action];
-  document.getElementById('remarks-title').textContent = title;
-  document.getElementById('remarks-label').textContent = label;
-  document.getElementById('remarks-text').value = '';
-  document.getElementById('remarks-modal').classList.add('open');
-}
-
-async function submitRemarks() {
-  const id = document.getElementById('remarks-req-id').value;
-  const action = document.getElementById('remarks-action').value;
-  const email = document.getElementById('remarks-visitor-email').value;
-  const text = document.getElementById('remarks-text').value.trim();
-
-  const statusMap = { accept_remarks: 'accepted_with_remarks', reschedule: 'reschedule_requested', decline: 'declined' };
-  try {
-    await sb(`booking_requests?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: statusMap[action], owner_remarks: text, updated_at: new Date().toISOString() }) });
-    const subjects = { accept_remarks: 'Your booking was accepted!', reschedule: 'Reschedule requested for your booking', decline: 'Update on your booking request' };
-    sendEmail(email, subjects[action], `<p>${text || 'The owner has responded to your booking request.'}</p>`);
-    showToast('Response sent ✓');
-    closeModal('remarks-modal');
-    openDrawer(); loadPendingCount();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-async function sendEmail(to, subject, html) {
-  try { await fetch('/api/email', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ to, subject, html }) }); } catch(e) {}
-}
-
-// ── CHAT ──
-function chatKeydown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
-
-async function sendChat() {
-  const input = document.getElementById('chat-input');
-  const msg = input.value.trim();
-  if (!msg) return;
-  input.value = '';
-
-  appendMsg(msg, 'user');
-  chatHistory.push({ role: 'user', content: msg });
-
-  // Show typing
-  const typing = document.createElement('div');
-  typing.className = 'msg typing';
-  typing.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-  typing.id = 'typing-indicator';
-  document.getElementById('chat-messages').appendChild(typing);
-  scrollChat();
-
-  try {
-    const now = nowIST();
-    const scheduleData = await sb(`schedules?date=eq.${now.toISOString().split('T')[0]}&order=start_time.asc`).catch(() => []);
-    const pendingReqs = await sb('booking_requests?status=eq.pending').catch(() => []);
-
-    const systemPrompt = `You are MyScheduler, an AI assistant for the owner's personal schedule. Current IST time: ${now.toLocaleString('en-IN')}. Working hours: 5:00 AM – 11:00 PM IST.
-
-Today's schedule: ${JSON.stringify(scheduleData)}
-Pending booking requests: ${JSON.stringify(pendingReqs)}
-
-You can answer questions, find free slots, and help manage the schedule. For write actions (book, cancel, reschedule), ALWAYS ask for confirmation first with details. When user confirms, include an action tag at the end:
-<ACTION>{"type":"book","date":"YYYY-MM-DD","start":"HH:MM","end":"HH:MM","title":"Title","category":"Meeting","description":"..."}</ACTION>
-<ACTION>{"type":"cancel","id":"slot-id"}</ACTION>
-<ACTION>{"type":"reschedule","id":"slot-id","date":"YYYY-MM-DD","start":"HH:MM","end":"HH:MM"}</ACTION>
-Never execute write actions without explicit user confirmation. Always show times in IST. Keep responses concise and helpful.`;
-
-    const r = await fetch(GEMINI_PROXY, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ messages: chatHistory.slice(-10), systemPrompt }) });
-    const data = await r.json();
-    const text = data.text || 'Sorry, I had trouble responding.';
-
-    document.getElementById('typing-indicator')?.remove();
-
-    // Check for action
-    const actionMatch = text.match(/<ACTION>([\s\S]*?)<\/ACTION>/);
-    const displayText = text.replace(/<ACTION>[\s\S]*?<\/ACTION>/g, '').trim();
-
-    appendMsg(displayText, 'ai');
-    chatHistory.push({ role: 'assistant', content: displayText });
-
-    if (actionMatch) {
-      try {
-        const action = JSON.parse(actionMatch[1]);
-        await executeAction(action);
-      } catch(e) {}
-    }
-  } catch(e) {
-    document.getElementById('typing-indicator')?.remove();
-    appendMsg('Sorry, something went wrong. Please try again.', 'ai');
-  }
-}
-
-function appendMsg(text, role) {
-  const div = document.createElement('div');
-  div.className = `msg ${role}`;
-  div.textContent = text;
-  document.getElementById('chat-messages').appendChild(div);
-  scrollChat();
-}
-
-function scrollChat() {
-  const c = document.getElementById('chat-messages');
-  c.scrollTop = c.scrollHeight;
-}
-
-async function executeAction(action) {
-  try {
-    if (action.type === 'book') {
-      const existing = await sb(`schedules?date=eq.${action.date}&status=neq.cancelled`);
-      for (const s of existing) {
-        if (action.start < s.end_time && action.end > s.start_time) { showToast('Overlap detected — not booked', 'error'); return; }
-      }
-      const words = (action.description || '').split(/\s+/).filter(Boolean).length;
-      if (words < 25) { appendMsg('Description needs at least 25 words. Please provide more detail.', 'ai'); return; }
-      await sb('schedules', { method: 'POST', body: JSON.stringify({ date: action.date, start_time: action.start, end_time: action.end, title: action.title, category: action.category || 'Meeting', description: action.description, status: 'upcoming', created_by: 'owner' }) });
-      showToast('Slot booked via chat ✓');
-      loadSchedule(selectedDate); scheduleCache = {}; renderCalendar();
-    } else if (action.type === 'cancel') {
-      await sb(`schedules?id=eq.${action.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }) });
-      showToast('Slot cancelled via chat ✓');
-      loadSchedule(selectedDate); loadStats();
-    } else if (action.type === 'reschedule') {
-      await sb(`schedules?id=eq.${action.id}`, { method: 'PATCH', body: JSON.stringify({ date: action.date, start_time: action.start, end_time: action.end, status: 'rescheduled', updated_at: new Date().toISOString() }) });
-      showToast('Slot rescheduled via chat ✓');
-      loadSchedule(selectedDate);
-    }
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-// Close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(o => {
-  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
-});
-
-document.getElementById('requests-drawer').addEventListener('click', e => {
-  if (e.target === document.getElementById('requests-drawer')) closeDrawer();
-});
+// expose for remarks modal (needed due to closures)
+Object.assign(window,{rmkAction:null,rmkReqId:null,rmkReqData:null});
+const _confirmRemarks=confirmRemarks;
+window.confirmRemarks=()=>{
+  window.rmkAction=rmkAction; window.rmkReqId=rmkReqId; window.rmkReqData=rmkReqData;
+  _confirmRemarks();
+};
 </script>
 </body>
 </html>
