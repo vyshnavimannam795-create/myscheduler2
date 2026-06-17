@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MyScheduler</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f1f5f9;min-height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{background:#1e293b;border-bottom:1px solid #334155;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-brand{font-size:1.4rem;font-weight:700;color:#6366f1}
+.topbar-right{display:flex;align-items:center;gap:10px}
+
+/* ── BUTTONS ── */
+.btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:.875rem;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#4f46e5}
+.btn-ghost{background:#334155;color:#f1f5f9}.btn-ghost:hover{background:#475569}
+.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
+.btn-sm{padding:5px 12px;font-size:.78rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.badge-n{background:#ef4444;color:#fff;border-radius:50%;width:20px;height:20px;font-size:.7rem;display:inline-flex;align-items:center;justify-content:center}
+
+/* ── PANELS ── */
+.panels{display:grid;grid-template-columns:280px 1fr 300px;height:calc(100vh - 57px)}
+.panel{overflow-y:auto;padding:20px;border-right:1px solid #334155}
+.panel:last-child{border-right:none}
+.panel-title{font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:16px;font-weight:600}
+
+/* ── CALENDAR ── */
+.cal{background:#1e293b;border-radius:12px;padding:14px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-head h3{font-size:.95rem;font-weight:600}
+.cal-nav{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px}
+.cal-nav:hover{background:#334155;color:#f1f5f9}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.cal-dn{text-align:center;font-size:.68rem;color:#64748b;padding:3px;font-weight:500}
+.cal-d{text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:.82rem;position:relative;transition:background .15s}
+.cal-d:hover:not(.past):not(.empty){background:#334155}
+.cal-d.today{background:#6366f1;color:#fff;font-weight:700}
+.cal-d.sel{background:#4f46e5;color:#fff}
+.cal-d.has-ev::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:#10b981;border-radius:50%}
+.cal-d.past{color:#475569;cursor:default}
+.cal-d.empty{cursor:default}
+
+/* ── TIMELINE SLOTS ── */
+.slot-row{border-radius:8px;padding:12px 14px;margin-bottom:6px;border:1px solid transparent;transition:all .15s}
+.slot-row.avail{background:#1e293b;border-color:#334155;cursor:pointer}
+.slot-row.avail:hover{border-color:#6366f1;background:#1e2d4a}
+.slot-row.booked{background:#1a1f2e;border-color:#2d3748;cursor:not-allowed;opacity:.6}
+.slot-row.pending-slot{background:#1e293b;border-color:#f59e0b;cursor:not-allowed;opacity:.7}
+.slot-time{font-size:.85rem;font-weight:600;margin-bottom:2px}
+.slot-lbl{font-size:.75rem}
+.avail .slot-lbl{color:#10b981}
+.booked .slot-lbl{color:#6b7280}
+.pending-slot .slot-lbl{color:#f59e0b}
+
+/* ── OWNER SLOT CARDS ── */
+.ocard{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:10px;border-left:4px solid #6366f1}
+.ocard.completed{border-left-color:#10b981}
+.ocard.cancelled{border-left-color:#ef4444;opacity:.65}
+.ocard.rescheduled{border-left-color:#f59e0b}
+.ocard-title{font-weight:600;margin-bottom:3px}
+.ocard-time{font-size:.78rem;color:#94a3b8;margin-bottom:6px}
+.ocard-desc{font-size:.8rem;color:#94a3b8;margin-bottom:8px;line-height:1.4}
+.cat-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:600;margin-bottom:6px}
+.cat-Meeting{background:#1d4ed8;color:#fff}
+.cat-Brainstorming{background:#7c3aed;color:#fff}
+.cat-Event{background:#0891b2;color:#fff}
+.cat-Learnings{background:#065f46;color:#fff}
+.cat-Others{background:#374151;color:#fff}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600}
+.pill-upcoming{background:#1e3a5f;color:#60a5fa}
+.pill-completed{background:#064e3b;color:#34d399}
+.pill-cancelled{background:#450a0a;color:#f87171}
+.pill-rescheduled{background:#451a03;color:#fcd34d}
+.ocard-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+
+/* ── STATS ── */
+.stats{display:flex;gap:10px;margin-bottom:16px}
+.stat{flex:1;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:12px;text-align:center}
+.stat-n{font-size:1.5rem;font-weight:700}
+.stat-l{font-size:.7rem;color:#94a3b8;margin-top:2px}
+
+/* ── REQUEST CARDS ── */
+.rcard{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:12px}
+.rcard.conflict{border-color:#f59e0b}
+.conflict-w{background:#451a03;border:1px solid #f59e0b;border-radius:6px;padding:6px 10px;font-size:.78rem;color:#fcd34d;margin-bottom:8px}
+.rcard-name{font-weight:600;margin-bottom:4px}
+.rcard-meta{font-size:.8rem;color:#94a3b8;margin-bottom:3px}
+.rcard-desc{font-size:.85rem;margin:8px 0;line-height:1.45}
+.rcard-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.sbadge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600}
+.sb-pending{background:#451a03;color:#fcd34d}
+.sb-accepted,.sb-accepted_with_remarks{background:#064e3b;color:#34d399}
+.sb-declined{background:#450a0a;color:#f87171}
+.sb-reschedule_requested{background:#1e3a5f;color:#60a5fa}
+
+/* ── CHAT ── */
+.chat-wrap{display:flex;flex-direction:column;height:100%}
+.chat-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+.msg-u{align-self:flex-end;max-width:88%}
+.msg-u .bub{background:#6366f1;color:#fff;padding:9px 13px;border-radius:16px 16px 4px 16px;font-size:.875rem;line-height:1.45}
+.msg-a{align-self:flex-start;max-width:88%}
+.msg-a .bub{background:#1e293b;border:1px solid #334155;color:#f1f5f9;padding:9px 13px;border-radius:16px 16px 16px 4px;font-size:.875rem;line-height:1.45}
+.chat-row{display:flex;gap:8px;margin-top:8px;flex-shrink:0}
+.chat-row input{flex:1;padding:10px 13px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:.875rem;outline:none}
+.chat-row input:focus{border-color:#6366f1}
+.chat-row button{padding:10px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500}
+
+/* ── MODALS ── */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;align-items:center;justify-content:center;padding:16px}
+.ov.open{display:flex}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:28px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto}
+.modal h2{margin-bottom:20px;font-size:1.1rem}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:.82rem;color:#94a3b8;margin-bottom:5px;font-weight:500}
+.fg input,.fg select,.fg textarea{width:100%;padding:10px 13px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:.875rem;outline:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#6366f1}
+.fg textarea{height:90px;resize:vertical;line-height:1.45}
+.char-cnt{font-size:.73rem;color:#64748b;margin-top:3px}
+.char-cnt.ok{color:#10b981}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.form-err{color:#ef4444;font-size:.8rem;margin-top:8px;min-height:18px}
+.form-ok{color:#10b981;font-size:.8rem;margin-top:8px}
+
+/* ── PAST BOOKINGS ── */
+.past-section{margin-top:20px;padding-top:16px;border-top:1px solid #334155}
+.past-section h3{font-size:.85rem;color:#94a3b8;margin-bottom:10px}
+.past-section input{width:100%;padding:9px 13px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:.875rem;outline:none;margin-bottom:8px}
+.past-item{background:#1e293b;border-radius:8px;padding:10px 13px;margin-top:6px;font-size:.83rem;border-left:3px solid #6366f1}
+.past-item .ps-accepted,.past-item .ps-accepted_with_remarks{color:#34d399}
+.past-item .ps-pending{color:#fcd34d}
+.past-item .ps-declined{color:#f87171}
+.past-item .ps-reschedule_requested{color:#60a5fa}
+.past-item .ps-cancelled{color:#f87171}
+
+/* ── CANCEL HIST ── */
+.ch-btn{background:none;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;margin-top:14px}
+.ch-btn:hover{border-color:#6366f1;color:#f1f5f9}
+.ch-item{background:#1e293b;border-left:3px solid #ef4444;border-radius:8px;padding:10px 13px;margin-top:8px;font-size:.83rem}
+
+.no-data{text-align:center;color:#475569;padding:36px 20px;font-size:.9rem}
+.copy-ok{color:#10b981;font-size:.78rem;margin-left:8px}
+
+/* ── TABS (owner) ── */
+.tab-row{display:flex;gap:4px;background:#0f172a;padding:4px;border-radius:10px}
+.tab-btn{padding:7px 16px;border-radius:7px;border:none;cursor:pointer;font-size:.85rem;font-weight:500;color:#94a3b8;background:none;transition:all .2s}
+.tab-btn.active{background:#6366f1;color:#fff}
+
+/* ── SUCCESS MSG ── */
+.success-banner{background:#064e3b;border:1px solid #10b981;border-radius:8px;padding:14px;color:#6ee7b7;margin-bottom:12px;font-size:.9rem}
+
+@media(max-width:768px){
+  .panels{grid-template-columns:1fr;height:auto}
+  .panel{border-right:none;border-bottom:1px solid #334155;min-height:260px}
+  .topbar{flex-wrap:wrap;gap:8px}
+  .stats{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ TOPBAR ════════════════════════════════ -->
+<div class="topbar">
+  <span class="topbar-brand">MyScheduler</span>
+  <div class="topbar-right" id="topbar-right">
+    <!-- Visitor view buttons -->
+    <button class="btn btn-primary" id="owner-login-btn" onclick="showLoginModal()">🔐 Owner Login</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ VISITOR VIEW ══════════════════════════════ -->
+<div id="visitor-view">
+  <div class="panels">
+    <!-- Panel 1: Calendar + Past Requests -->
+    <div class="panel">
+      <div class="panel-title">Select a Date</div>
+      <div class="cal" id="v-cal">
+        <div class="cal-head">
+          <button class="cal-nav" onclick="vCalMonth(-1)">←</button>
+          <h3 id="v-cal-lbl"></h3>
+          <button class="cal-nav" onclick="vCalMonth(1)">→</button>
+        </div>
+        <div class="cal-grid" id="v-cal-grid"></div>
+      </div>
+      <div class="past-section">
+        <h3>📋 View My Past Requests</h3>
+        <input type="email" id="past-email" placeholder="Enter your email"/>
+        <button class="btn btn-ghost btn-sm" onclick="lookupPast()">Search</button>
+        <div id="past-results"></div>
+      </div>
+    </div>
+
+    <!-- Panel 2: Availability Timeline -->
+    <div class="panel">
+      <div class="panel-title">Availability — <span id="v-day-lbl">Select a date</span></div>
+      <div id="v-timeline"><div class="no-data">Select a date to see availability</div></div>
+    </div>
+
+    <!-- Panel 3: Visitor AI -->
+    <div class="panel">
+      <div class="panel-title">AI Assistant</div>
+      <div class="chat-wrap">
+        <div class="chat-msgs" id="v-chat-msgs">
+          <div class="msg-a"><div class="bub">👋 Hi! I can help you check availability and book a meeting.<br><br>Try asking:<br>• "Is the owner free on Friday at 2pm?"<br>• "What slots are available tomorrow?"<br>• "I'd like to book a meeting"</div></div>
+        </div>
+        <div class="chat-row">
+          <input type="text" id="v-chat-in" placeholder="Ask about availability..." onkeydown="if(event.key==='Enter')vSendChat()"/>
+          <button onclick="vSendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ OWNER VIEW ═══════════════════════════════ -->
+<div id="owner-view" style="display:none">
+  <div style="background:#1e293b;border-bottom:1px solid #334155;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div class="tab-row">
+      <button class="tab-btn active" id="otab-sched" onclick="oTab('schedule')">📅 Schedule</button>
+      <button class="tab-btn" id="otab-reqs" onclick="oTab('requests')">📬 Requests <span class="badge-n" id="req-badge">0</span></button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-ghost btn-sm" onclick="copyBookingLink()">📋 Copy Booking Link <span class="copy-ok" id="copy-ok" style="display:none">Copied!</span></button>
+      <button class="btn btn-primary btn-sm" onclick="openAddSlot()">+ Add Slot</button>
+      <button class="btn btn-ghost btn-sm" onclick="ownerLogout()">← Booking Page</button>
+    </div>
+  </div>
+
+  <!-- Schedule Tab -->
+  <div id="o-sched">
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-title">Calendar</div>
+        <div class="cal">
+          <div class="cal-head">
+            <button class="cal-nav" onclick="oCalMonth(-1)">←</button>
+            <h3 id="o-cal-lbl"></h3>
+            <button class="cal-nav" onclick="oCalMonth(1)">→</button>
+          </div>
+          <div class="cal-grid" id="o-cal-grid"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Day Schedule — <span id="o-day-lbl">Select a date</span></div>
+        <div class="stats">
+          <div class="stat"><div class="stat-n" style="color:#10b981" id="st-done">0</div><div class="stat-l">Completed</div></div>
+          <div class="stat"><div class="stat-n" style="color:#f59e0b" id="st-rs">0</div><div class="stat-l">Rescheduled</div></div>
+          <div class="stat"><div class="stat-n" style="color:#ef4444" id="st-cx">0</div><div class="stat-l">Cancelled</div></div>
+        </div>
+        <div id="o-slots"><div class="no-data">Select a date</div></div>
+        <button class="ch-btn" onclick="toggleCH()">📋 Cancellation History</button>
+        <div id="ch-list" style="display:none"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">AI Assistant</div>
+        <div class="chat-wrap">
+          <div class="chat-msgs" id="o-chat-msgs">
+            <div class="msg-a"><div class="bub">👋 Hi! I'm your scheduling assistant.<br><br>• "What do I have today?"<br>• "When am I free on Friday?"<br>• "Book a meeting at 3pm"<br>• "Show pending requests"</div></div>
+          </div>
+          <div class="chat-row">
+            <input type="text" id="o-chat-in" placeholder="Ask anything..." onkeydown="if(event.key==='Enter')oSendChat()"/>
+            <button onclick="oSendChat()">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Requests Tab -->
+  <div id="o-reqs" style="display:none;padding:20px;max-width:860px;margin:0 auto">
+    <div style="display:flex;gap:4px;background:#0f172a;padding:4px;border-radius:8px;margin-bottom:16px">
+      <button class="tab-btn active" id="rft-p" onclick="reqFilter('pending')" style="flex:1">⏳ Pending</button>
+      <button class="tab-btn" id="rft-a" onclick="reqFilter('all')" style="flex:1">📋 All</button>
+    </div>
+    <div id="reqs-list"><div class="no-data">Loading...</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ MODALS ════════════════════════════════════ -->
+
+<!-- Login Modal -->
+<div class="ov" id="login-modal">
+  <div class="modal" style="max-width:360px;text-align:center">
+    <h2>🔐 Owner Login</h2>
+    <div class="fg"><label>Password</label><input type="password" id="login-pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <div class="form-err" id="login-err"></div>
+    <div class="modal-btns" style="justify-content:center">
+      <button class="btn btn-ghost" onclick="closeModal('login-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doLogin()">Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- Booking Form Modal -->
+<div class="ov" id="book-modal">
+  <div class="modal">
+    <h2>Request a Meeting</h2>
+    <div class="fg"><label>Your Name *</label><input type="text" id="b-name" placeholder="Full name"/></div>
+    <div class="fg"><label>Your Email *</label><input type="email" id="b-email" placeholder="email@example.com"/></div>
+    <div class="fg"><label>Date</label><input type="text" id="b-date" readonly style="color:#94a3b8"/></div>
+    <div class="fg"><label>Start Time (IST)</label><input type="time" id="b-start"/></div>
+    <div class="fg"><label>End Time (IST) *</label><input type="time" id="b-end"/></div>
+    <div class="fg">
+      <label>Reason for Meeting * (min 25 characters)</label>
+      <textarea id="b-desc" placeholder="Describe the purpose of this meeting (min 25 characters)..." oninput="updateCharCount('b-desc','b-cc')"></textarea>
+      <div class="char-cnt" id="b-cc">0 / 25 characters</div>
+    </div>
+    <div class="form-err" id="b-err"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('book-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitBooking()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Slot Modal -->
+<div class="ov" id="slot-modal">
+  <div class="modal">
+    <h2 id="slot-modal-h">Add to Schedule</h2>
+    <div class="fg"><label>Category</label>
+      <select id="f-cat"><option>Meeting</option><option>Brainstorming</option><option>Event Participation</option><option>Learnings</option><option>Others</option></select>
+    </div>
+    <div class="fg"><label>Title</label><input type="text" id="f-title" placeholder="Enter title"/></div>
+    <div class="fg"><label>Date</label><input type="date" id="f-date"/></div>
+    <div class="fg"><label>Start Time (IST, min 5:00 AM)</label><input type="time" id="f-start"/></div>
+    <div class="fg"><label>End Time (IST, max 11:00 PM)</label><input type="time" id="f-end"/></div>
+    <div class="fg">
+      <label>Description (min 25 characters)</label>
+      <textarea id="f-desc" oninput="updateCharCount('f-desc','f-cc')"></textarea>
+      <div class="char-cnt" id="f-cc">0 / 25 characters</div>
+    </div>
+    <div class="form-err" id="slot-err"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('slot-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitSlot()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule Modal -->
+<div class="ov" id="rs-modal">
+  <div class="modal">
+    <h2>Reschedule Slot</h2>
+    <div class="fg"><label>New Date</label><input type="date" id="rs-date"/></div>
+    <div class="fg"><label>New Start Time</label><input type="time" id="rs-start"/></div>
+    <div class="fg"><label>New End Time</label><input type="time" id="rs-end"/></div>
+    <div class="form-err" id="rs-err"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('rs-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmRS()">Reschedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- Remarks Modal -->
+<div class="ov" id="rmk-modal">
+  <div class="modal">
+    <h2 id="rmk-h">Add Remarks</h2>
+    <div class="fg"><label id="rmk-lbl">Remarks</label><textarea id="rmk-in" placeholder="Optional..."></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('rmk-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmRmk()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════ CONFIG ════════════════════════════════════════
+const SB_URL = 'https://gyznhncbwoopkzxzhwpt.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5em5obmNid29vcGt6eHpod3B0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NzQ2MjAsImV4cCI6MjA5NzE1MDYyMH0.rDCBabevIA_WzAOnj03wzpUsjO73IEc8vc9GAyQX-V4';
+const PASS   = 'Usharama@7505';
+const PROXY  = '/api/gemini';
+const sb     = supabase.createClient(SB_URL, SB_KEY);
+
+// ═══════════════════════════ STATE ═════════════════════════════════════════
+let vCalY, vCalM, vSelDate = null;
+let oCalY, oCalM, oSelDate = null;
+let oEventDates = new Set();
+let editSlotId = null, rsSlotId = null;
+let rmkAction = null, rmkReqId = null, rmkReq = null;
+let vChatHist = [], oChatHist = [];
+let allReqs = [], reqFilterMode = 'pending';
+let realtimeSub = null;
+
+// ═══════════════════════════ HELPERS ═══════════════════════════════════════
+function ist(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})); }
+function fd(d){ return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`; }
+function p2(n){ return String(n).padStart(2,'0'); }
+function ft(t){
+  if(!t) return '';
+  const [h,m] = t.split(':'); const hr=parseInt(h);
+  return `${hr%12||12}:${m} ${hr>=12?'PM':'AM'} IST`;
+}
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function updateCharCount(tid, cid){
+  const n = document.getElementById(tid).value.length;
+  const el = document.getElementById(cid);
+  el.textContent = `${n} / 25 characters`;
+  el.className = n >= 25 ? 'char-cnt ok' : 'char-cnt';
+}
+document.addEventListener('click', e => {
+  if(e.target.classList.contains('ov')) e.target.classList.remove('open');
+});
+
+// ═══════════════════════════ INIT ══════════════════════════════════════════
+window.onload = () => {
+  const now = ist();
+  vCalY = oCalY = now.getFullYear();
+  vCalM = oCalM = now.getMonth();
+  vSelDate = oSelDate = fd(now);
+  renderVCal(); renderOCal();
+  vSelectDate(vSelDate);
+  if(sessionStorage.getItem('ms_owner')){
+    showOwnerView();
+  }
+  setupRealtime();
+};
+
+// ═══════════════════════════ REALTIME ══════════════════════════════════════
+function setupRealtime(){
+  sb.channel('db-changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'booking_requests'},()=>{
+      if(vSelDate) vSelectDate(vSelDate);
+      lookupPastAuto();
+      if(sessionStorage.getItem('ms_owner')){ loadReqs(); loadReqCount(); }
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'schedules'},()=>{
+      if(vSelDate) renderVTimeline(vSelDate);
+      if(sessionStorage.getItem('ms_owner')){ loadOSlots(); loadStats(); loadOEventDates(); }
+    })
+    .subscribe();
+}
+let lastPastEmail = '';
+function lookupPastAuto(){ if(lastPastEmail) lookupPast(true); }
+
+// ═══════════════════════════ AUTH ══════════════════════════════════════════
+function showLoginModal(){
+  document.getElementById('login-pw').value='';
+  document.getElementById('login-err').textContent='';
+  openModal('login-modal');
+}
+function doLogin(){
+  if(document.getElementById('login-pw').value === PASS){
+    sessionStorage.setItem('ms_owner','1');
+    closeModal('login-modal');
+    showOwnerView();
+  } else {
+    document.getElementById('login-err').textContent='❌ Wrong password';
+  }
+}
+function showOwnerView(){
+  document.getElementById('visitor-view').style.display='none';
+  document.getElementById('owner-view').style.display='block';
+  document.getElementById('owner-login-btn').style.display='none';
+  const now=ist();
+  oCalY=now.getFullYear(); oCalM=now.getMonth();
+  oSelDate=fd(now);
+  renderOCal();
+  oSelectDate(oSelDate);
+  Promise.all([loadOEventDates(),loadStats(),loadReqCount(),loadReqs()]);
+}
+function ownerLogout(){
+  sessionStorage.removeItem('ms_owner');
+  document.getElementById('owner-view').style.display='none';
+  document.getElementById('visitor-view').style.display='block';
+  document.getElementById('owner-login-btn').style.display='inline-flex';
+}
+
+// ═══════════════════════════ VISITOR CALENDAR ══════════════════════════════
+function renderVCal(){
+  const lbl=new Date(vCalY,vCalM,1).toLocaleString('en-US',{month:'long',year:'numeric'});
+  document.getElementById('v-cal-lbl').textContent=lbl;
+  const grid=document.getElementById('v-cal-grid');
+  grid.innerHTML='';
+  ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>{
+    const e=document.createElement('div'); e.className='cal-dn'; e.textContent=d; grid.appendChild(e);
+  });
+  const first=new Date(vCalY,vCalM,1).getDay();
+  const total=new Date(vCalY,vCalM+1,0).getDate();
+  const today=fd(ist());
+  for(let i=0;i<first;i++){const e=document.createElement('div');e.className='cal-d empty';grid.appendChild(e);}
+  for(let d=1;d<=total;d++){
+    const ds=`${vCalY}-${p2(vCalM+1)}-${p2(d)}`;
+    const el=document.createElement('div'); el.className='cal-d'; el.textContent=d;
+    if(ds<today){el.classList.add('past');}
+    else{
+      if(ds===today) el.classList.add('today');
+      if(ds===vSelDate) el.classList.add('sel');
+      el.onclick=()=>vSelectDate(ds);
+    }
+    grid.appendChild(el);
+  }
+}
+function vCalMonth(d){ vCalM+=d; if(vCalM<0){vCalM=11;vCalY--;} if(vCalM>11){vCalM=0;vCalY++;} renderVCal(); }
+function vSelectDate(ds){
+  vSelDate=ds; renderVCal();
+  const [y,m,d]=ds.split('-');
+  document.getElementById('v-day-lbl').textContent=new Date(y,m-1,d).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});
+  renderVTimeline(ds);
+}
+
+// ═══════════════════════════ VISITOR TIMELINE ══════════════════════════════
+async function renderVTimeline(date){
+  const el=document.getElementById('v-timeline');
+  el.innerHTML='<div class="no-data">Loading...</div>';
+
+  // Fetch confirmed bookings (schedules)
+  const {data:booked}=await sb.from('schedules').select('start_time,end_time').eq('date',date).neq('status','cancelled');
+  // Fetch pending requests for this date
+  const {data:pending}=await sb.from('booking_requests').select('start_time,end_time').eq('requested_date',date).eq('status','pending');
+
+  // Generate 30-min slots 5am-11pm
+  const slots=[];
+  for(let h=5;h<23;h++){
+    for(let m=0;m<60;m+=30){
+      const s=`${p2(h)}:${p2(m)}`;
+      const eh=m===30?h+1:h, em=m===30?0:30;
+      const e=`${p2(eh)}:${p2(em)}`;
+
+      // Check if ANY booked slot overlaps with this slot
+      const isBooked=(booked||[]).some(b=>{
+        const bs=b.start_time.slice(0,5), be=b.end_time.slice(0,5);
+        return bs < e && be > s; // overlap check
+      });
+      // Check if pending request overlaps
+      const isPending=!isBooked && (pending||[]).some(p=>{
+        const ps=p.start_time.slice(0,5), pe=p.end_time.slice(0,5);
+        return ps < e && pe > s;
+      });
+
+      slots.push({s,e,isBooked,isPending});
+    }
+  }
+
+  const allUnavail=slots.every(s=>s.isBooked||s.isPending);
+  if(allUnavail){
+    el.innerHTML='<div class="no-data">No available slots on this date — please try another date.</div>';
+    return;
+  }
+
+  el.innerHTML=slots.map(sl=>`
+    <div class="slot-row ${sl.isBooked?'booked':sl.isPending?'pending-slot':'avail'}"
+      ${!sl.isBooked&&!sl.isPending?`onclick="openBookForm('${sl.s}','${sl.e}')"`:''}>
+      <div class="slot-time">${ft(sl.s)} – ${ft(sl.e)}</div>
+      <div class="slot-lbl">${sl.isBooked?'🔒 Booked':sl.isPending?'⏳ Pending Request':'✅ Available — Click to request'}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════ BOOKING FORM ══════════════════════════════════
+function openBookForm(start, end){
+  document.getElementById('b-date').value=vSelDate;
+  document.getElementById('b-start').value=start;
+  document.getElementById('b-end').value=end;
+  document.getElementById('b-name').value='';
+  document.getElementById('b-email').value='';
+  document.getElementById('b-desc').value='';
+  document.getElementById('b-err').textContent='';
+  document.getElementById('b-cc').textContent='0 / 25 characters';
+  document.getElementById('b-cc').className='char-cnt';
+  openModal('book-modal');
+}
+
+async function submitBooking(){
+  const name=document.getElementById('b-name').value.trim();
+  const email=document.getElementById('b-email').value.trim();
+  const date=document.getElementById('b-date').value;
+  const start=document.getElementById('b-start').value;
+  const end=document.getElementById('b-end').value;
+  const desc=document.getElementById('b-desc').value.trim();
+  const errEl=document.getElementById('b-err');
+  errEl.textContent='';
+
+  if(!name||!email||!start||!end||!desc){errEl.textContent='All fields are required';return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){errEl.textContent='Invalid email format';return;}
+  if(end<=start){errEl.textContent='End time must be after start time';return;}
+  if(desc.length<25){errEl.textContent='Description must be at least 25 characters';return;}
+
+  // Real overlap check
+  const {data:booked}=await sb.from('schedules').select('id').eq('date',date).neq('status','cancelled').lt('start_time',end).gt('end_time',start);
+  if(booked&&booked.length){errEl.textContent='This time is no longer available, please choose another slot.';return;}
+
+  const {error}=await sb.from('booking_requests').insert([{
+    visitor_name:name,visitor_email:email,requested_date:date,
+    start_time:start,end_time:end,description:desc,status:'pending'
+  }]);
+  if(error){errEl.textContent='Submission failed. Please try again.';return;}
+
+  closeModal('book-modal');
+  renderVTimeline(date);
+  // Show success in timeline
+  const tl=document.getElementById('v-timeline');
+  const banner=document.createElement('div');
+  banner.className='success-banner';
+  banner.innerHTML='✅ <strong>Request submitted!</strong> You will receive an email once the owner reviews it.';
+  tl.prepend(banner);
+  setTimeout(()=>banner.remove(),6000);
+}
+
+// ═══════════════════════════ PAST BOOKINGS ══════════════════════════════════
+async function lookupPast(auto=false){
+  const email = auto ? lastPastEmail : document.getElementById('past-email').value.trim();
+  if(!email) return;
+  lastPastEmail = email;
+  const el=document.getElementById('past-results');
+  const {data}=await sb.from('booking_requests').select('*').eq('visitor_email',email).order('created_at',{ascending:false});
+  if(!data||!data.length){el.innerHTML='<p style="color:#64748b;font-size:.83rem;margin-top:8px">No requests found.</p>';return;}
+  el.innerHTML=data.map(r=>`
+    <div class="past-item">
+      <strong>${r.requested_date}</strong> · ${ft(r.start_time)} – ${ft(r.end_time)}<br>
+      Status: <span class="ps-${r.status}">${r.status.replace(/_/g,' ')}</span>
+      ${r.owner_remarks?`<br><em style="color:#94a3b8">${r.owner_remarks}</em>`:''}
+    </div>`).join('');
+}
+
+// ═══════════════════════════ VISITOR CHAT ══════════════════════════════════
+async function vSendChat(){
+  const inp=document.getElementById('v-chat-in');
+  const msg=inp.value.trim(); if(!msg)return;
+  inp.value='';
+  vAddMsg('u',msg);
+  vChatHist.push({role:'user',content:msg});
+  const typing=vAddMsg('a','⋯');
+
+  let schedInfo='No data loaded';
+  if(vSelDate){
+    const {data}=await sb.from('schedules').select('start_time,end_time').eq('date',vSelDate).neq('status','cancelled');
+    schedInfo=data?.length?data.map(s=>`Booked: ${s.start_time.slice(0,5)}-${s.end_time.slice(0,5)}`).join(', '):'Fully available';
+  }
+
+  const sys=`You are a scheduling assistant for a visitor wanting to book time with the owner.
+Current IST date/time: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}
+Selected date: ${vSelDate||'none'}
+Schedule for selected date: ${schedInfo}
+Working hours: 5:00 AM – 11:00 PM IST.
+
+RULES:
+1. NEVER reveal meeting titles, descriptions, or visitor names from bookings
+2. Booked slots: only say "Booked" — no details
+3. Help visitor understand availability
+4. If visitor wants to book: tell them to click an available slot on the timeline
+5. Be helpful and friendly
+6. All times in IST`;
+
+  try{
+    const r=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:vChatHist.slice(-8),systemPrompt:sys})});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    typing.remove();
+    const reply=d.response||'No response.';
+    vAddMsg('a',reply);
+    vChatHist.push({role:'assistant',content:reply});
+  } catch(e){
+    typing.remove();
+    vAddMsg('a',`⚠ Could not connect to AI. (${e.message})`);
+    console.error('vChat error:',e);
+  }
+}
+function vAddMsg(role,text){
+  const c=document.getElementById('v-chat-msgs');
+  const div=document.createElement('div'); div.className=`msg-${role}`;
+  div.innerHTML=`<div class="bub">${String(text).replace(/\n/g,'<br>')}</div>`;
+  c.appendChild(div); c.scrollTop=c.scrollHeight; return div;
+}
+
+// ═══════════════════════════ OWNER CALENDAR ════════════════════════════════
+async function loadOEventDates(){
+  const {data}=await sb.from('schedules').select('date').neq('status','cancelled');
+  oEventDates=new Set(data?.map(r=>r.date)||[]);
+  renderOCal();
+}
+function renderOCal(){
+  const lbl=new Date(oCalY,oCalM,1).toLocaleString('en-US',{month:'long',year:'numeric'});
+  document.getElementById('o-cal-lbl').textContent=lbl;
+  const grid=document.getElementById('o-cal-grid'); grid.innerHTML='';
+  ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>{const e=document.createElement('div');e.className='cal-dn';e.textContent=d;grid.appendChild(e);});
+  const first=new Date(oCalY,oCalM,1).getDay();
+  const total=new Date(oCalY,oCalM+1,0).getDate();
+  const today=fd(ist());
+  for(let i=0;i<first;i++){const e=document.createElement('div');e.className='cal-d empty';grid.appendChild(e);}
+  for(let d=1;d<=total;d++){
+    const ds=`${oCalY}-${p2(oCalM+1)}-${p2(d)}`;
+    const el=document.createElement('div'); el.className='cal-d'; el.textContent=d;
+    if(ds===today) el.classList.add('today');
+    if(ds===oSelDate) el.classList.add('sel');
+    if(oEventDates.has(ds)) el.classList.add('has-ev');
+    el.onclick=()=>oSelectDate(ds);
+    grid.appendChild(el);
+  }
+}
+function oCalMonth(d){oCalM+=d;if(oCalM<0){oCalM=11;oCalY--;}if(oCalM>11){oCalM=0;oCalY++;}renderOCal();}
+function oSelectDate(ds){
+  oSelDate=ds; renderOCal();
+  const [y,m,d]=ds.split('-');
+  document.getElementById('o-day-lbl').textContent=new Date(y,m-1,d).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  loadOSlots();
+}
+
+// ═══════════════════════════ OWNER SLOTS ═══════════════════════════════════
+async function loadOSlots(){
+  if(!oSelDate)return;
+  const {data}=await sb.from('schedules').select('*').eq('date',oSelDate).order('start_time');
+  const el=document.getElementById('o-slots');
+  if(!data||!data.length){el.innerHTML='<div class="no-data">No slots for this date</div>';return;}
+  const catCls=(c)=>({Meeting:'Meeting',Brainstorming:'Brainstorming','Event Participation':'Event',Learnings:'Learnings',Others:'Others'}[c]||'Others');
+  el.innerHTML=data.map(s=>`
+    <div class="ocard ${s.status}">
+      <span class="cat-badge cat-${catCls(s.category)}">${s.category}</span>
+      <div class="ocard-title">${s.title}</div>
+      <div class="ocard-time">${ft(s.start_time)} – ${ft(s.end_time)}</div>
+      <div class="ocard-desc">${s.description||''}</div>
+      <div style="font-size:.78rem;color:#64748b">
+        <span class="pill pill-${s.status}">${s.status}</span>
+        ${s.visitor_name?' · Visitor: '+s.visitor_name:''}
+      </div>
+      <div class="ocard-actions">
+        ${s.status!=='completed'&&s.status!=='cancelled'?`
+          <button class="btn btn-success btn-sm" onclick="doComplete('${s.id}')">✓ Done</button>
+          <button class="btn btn-ghost btn-sm" onclick="doEditSlot(${JSON.stringify(s).replace(/"/g,'&quot;')})">✎ Edit</button>
+          <button class="btn btn-warning btn-sm" onclick="doRS('${s.id}')">⟳ Reschedule</button>
+          <button class="btn btn-danger btn-sm" onclick="doCX('${s.id}')">✕ Cancel</button>
+        `:`<span style="color:#64748b;font-size:.78rem">${s.status==='completed'?'✓ Completed':'✕ Cancelled'}</span>`}
+      </div>
+    </div>`).join('');
+}
+async function loadStats(){
+  const {data}=await sb.from('schedules').select('status');
+  document.getElementById('st-done').textContent=data?.filter(r=>r.status==='completed').length||0;
+  document.getElementById('st-rs').textContent=data?.filter(r=>r.status==='rescheduled').length||0;
+  document.getElementById('st-cx').textContent=data?.filter(r=>r.status==='cancelled').length||0;
+}
+async function doComplete(id){
+  await sb.from('schedules').update({status:'completed',updated_at:new Date().toISOString()}).eq('id',id);
+  loadOSlots();loadStats();
+}
+async function doCX(id){
+  if(!confirm('Cancel this slot?'))return;
+  await sb.from('schedules').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',id);
+  loadOSlots();loadStats();loadOEventDates();
+}
+function doRS(id){rsSlotId=id;document.getElementById('rs-date').value=oSelDate||'';document.getElementById('rs-err').textContent='';openModal('rs-modal');}
+async function confirmRS(){
+  const date=document.getElementById('rs-date').value;
+  const start=document.getElementById('rs-start').value;
+  const end=document.getElementById('rs-end').value;
+  if(!date||!start||!end){document.getElementById('rs-err').textContent='All fields required';return;}
+  if(end<=start){document.getElementById('rs-err').textContent='End must be after start';return;}
+  if(await overlap(date,start,end,rsSlotId)){document.getElementById('rs-err').textContent='Overlaps existing slot!';return;}
+  await sb.from('schedules').update({date,start_time:start,end_time:end,status:'rescheduled',updated_at:new Date().toISOString()}).eq('id',rsSlotId);
+  closeModal('rs-modal');loadOSlots();loadStats();loadOEventDates();
+}
+
+// Add/Edit slot
+function openAddSlot(){
+  editSlotId=null;
+  document.getElementById('slot-modal-h').textContent='Add to Schedule';
+  document.getElementById('f-title').value='';document.getElementById('f-desc').value='';
+  document.getElementById('f-date').value=oSelDate||fd(ist());
+  document.getElementById('f-start').value='';document.getElementById('f-end').value='';
+  document.getElementById('slot-err').textContent='';
+  document.getElementById('f-cc').textContent='0 / 25 characters';
+  document.getElementById('f-cc').className='char-cnt';
+  openModal('slot-modal');
+}
+function doEditSlot(s){
+  editSlotId=s.id;
+  document.getElementById('slot-modal-h').textContent='Edit Slot';
+  document.getElementById('f-cat').value=s.category;
+  document.getElementById('f-title').value=s.title;
+  document.getElementById('f-date').value=s.date;
+  document.getElementById('f-start').value=(s.start_time||'').slice(0,5);
+  document.getElementById('f-end').value=(s.end_time||'').slice(0,5);
+  document.getElementById('f-desc').value=s.description||'';
+  document.getElementById('slot-err').textContent='';
+  updateCharCount('f-desc','f-cc');
+  openModal('slot-modal');
+}
+async function submitSlot(){
+  const cat=document.getElementById('f-cat').value;
+  const title=document.getElementById('f-title').value.trim();
+  const date=document.getElementById('f-date').value;
+  const start=document.getElementById('f-start').value;
+  const end=document.getElementById('f-end').value;
+  const desc=document.getElementById('f-desc').value.trim();
+  const err=document.getElementById('slot-err');
+  if(!title||!date||!start||!end||!desc){err.textContent='All fields required';return;}
+  if(end<=start){err.textContent='End must be after start';return;}
+  if(start<'05:00'){err.textContent='Start must be 5:00 AM or later';return;}
+  if(end>'23:00'){err.textContent='End must be 11:00 PM or earlier';return;}
+  if(desc.length<25){err.textContent='Description needs 25+ characters';return;}
+  if(await overlap(date,start,end,editSlotId)){err.textContent='Overlaps existing slot!';return;}
+  if(editSlotId){
+    await sb.from('schedules').update({category:cat,title,date,start_time:start,end_time:end,description:desc,updated_at:new Date().toISOString()}).eq('id',editSlotId);
+  } else {
+    await sb.from('schedules').insert([{category:cat,title,date,start_time:start,end_time:end,description:desc,status:'upcoming',created_by:'owner'}]);
+  }
+  closeModal('slot-modal');loadOSlots();loadOEventDates();loadStats();
+}
+
+async function overlap(date,start,end,excludeId=null){
+  let q=sb.from('schedules').select('id').eq('date',date).neq('status','cancelled').lt('start_time',end).gt('end_time',start);
+  if(excludeId) q=q.neq('id',excludeId);
+  const {data}=await q; return data&&data.length>0;
+}
+
+// Cancel history
+let chVis=false;
+async function toggleCH(){
+  chVis=!chVis;
+  const el=document.getElementById('ch-list'); el.style.display=chVis?'block':'none';
+  if(!chVis)return;
+  const {data}=await sb.from('schedules').select('*').eq('status','cancelled').order('updated_at',{ascending:false});
+  el.innerHTML=data?.length?data.map(s=>`<div class="ch-item"><strong>${s.title}</strong><br><span style="color:#94a3b8;font-size:.78rem">${s.date} · ${ft(s.start_time)} – ${ft(s.end_time)}</span></div>`).join(''):'<p style="color:#64748b;margin-top:8px">No cancelled slots</p>';
+}
+
+// ═══════════════════════════ REQUESTS ══════════════════════════════════════
+async function loadReqCount(){
+  const {count}=await sb.from('booking_requests').select('*',{count:'exact',head:true}).eq('status','pending');
+  document.getElementById('req-badge').textContent=count||0;
+}
+async function loadReqs(){
+  const {data}=await sb.from('booking_requests').select('*').order('created_at',{ascending:false});
+  allReqs=data||[]; renderReqs();
+}
+function reqFilter(f){
+  reqFilterMode=f;
+  document.getElementById('rft-p').classList.toggle('active',f==='pending');
+  document.getElementById('rft-a').classList.toggle('active',f==='all');
+  renderReqs();
+}
+function renderReqs(){
+  const el=document.getElementById('reqs-list');
+  const list=reqFilterMode==='pending'?allReqs.filter(r=>r.status==='pending'):allReqs;
+  if(!list.length){el.innerHTML='<div class="no-data">No requests</div>';return;}
+  const pend=allReqs.filter(r=>r.status==='pending');
+  el.innerHTML=list.map(r=>{
+    const ip=r.status==='pending';
+    const conf=ip&&pend.some(p=>p.id!==r.id&&p.requested_date===r.requested_date&&p.start_time<r.end_time&&p.end_time>r.start_time);
+    return `<div class="rcard ${conf?'conflict':''}">
+      ${conf?'<div class="conflict-w">⚠ Overlapping request exists</div>':''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span class="rcard-name">${r.visitor_name}</span>
+        <span class="sbadge sb-${r.status}">${r.status.replace(/_/g,' ')}</span>
+      </div>
+      <div class="rcard-meta">📧 ${r.visitor_email}</div>
+      <div class="rcard-meta">📅 ${r.requested_date} · ${ft(r.start_time)} – ${ft(r.end_time)}</div>
+      <div class="rcard-desc">${r.description}</div>
+      ${r.owner_remarks?`<div style="font-size:.8rem;color:#94a3b8;font-style:italic">Note: ${r.owner_remarks}</div>`:''}
+      ${ip?`<div class="rcard-actions">
+        <button class="btn btn-success btn-sm" onclick="reqAct('${r.id}','accept')">✓ Accept</button>
+        <button class="btn btn-ghost btn-sm" onclick="reqAct('${r.id}','accept_remarks')">Accept+Note</button>
+        <button class="btn btn-warning btn-sm" onclick="reqAct('${r.id}','reschedule')">⟳ Reschedule</button>
+        <button class="btn btn-danger btn-sm" onclick="reqAct('${r.id}','decline')">✕ Decline</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+async function reqAct(id,action){
+  const req=allReqs.find(r=>r.id===id); if(!req)return;
+  if(action==='accept'){
+    if(!confirm('Accept this booking?'))return;
+    await acceptReq(id,req,null);
+  } else {
+    rmkAction=action; rmkReqId=id; rmkReq=req;
+    const t={accept_remarks:'Accept with Note',reschedule:'Request Reschedule',decline:'Decline'};
+    const l={accept_remarks:'Add a note for the visitor:',reschedule:'Explain and suggest a new time:',decline:'Reason (optional):'};
+    document.getElementById('rmk-h').textContent=t[action];
+    document.getElementById('rmk-lbl').textContent=l[action];
+    document.getElementById('rmk-in').value='';
+    openModal('rmk-modal');
+  }
+}
+async function confirmRmk(){
+  const remarks=document.getElementById('rmk-in').value.trim();
+  closeModal('rmk-modal');
+  if(rmkAction==='accept_remarks') await acceptReq(rmkReqId,rmkReq,remarks);
+  else if(rmkAction==='reschedule'){
+    await sb.from('booking_requests').update({status:'reschedule_requested',owner_remarks:remarks,updated_at:new Date().toISOString()}).eq('id',rmkReqId);
+    sendEmail(rmkReq.visitor_email,'Reschedule Requested',rmkReq.visitor_name,`The owner has requested to reschedule your meeting on ${rmkReq.requested_date}. Message: ${remarks||'No message.'}`);
+  } else if(rmkAction==='decline'){
+    await sb.from('booking_requests').update({status:'declined',owner_remarks:remarks||null,updated_at:new Date().toISOString()}).eq('id',rmkReqId);
+    sendEmail(rmkReq.visitor_email,'Meeting Declined',rmkReq.visitor_name,`Your meeting request for ${rmkReq.requested_date} at ${ft(rmkReq.start_time)} was declined.${remarks?' Reason: '+remarks:''}`);
+  }
+  loadReqCount();loadReqs();loadOSlots();loadOEventDates();
+}
+async function acceptReq(id,req,remarks){
+  const ov=await overlap(req.requested_date,(req.start_time||'').slice(0,5),(req.end_time||'').slice(0,5));
+  if(ov){alert('Time slot already booked! Cannot accept.');return;}
+  await sb.from('schedules').insert([{
+    category:'Meeting',title:`Meeting with ${req.visitor_name}`,
+    date:req.requested_date,start_time:req.start_time,end_time:req.end_time,
+    description:req.description,status:'upcoming',created_by:'visitor',
+    visitor_name:req.visitor_name,visitor_email:req.visitor_email
+  }]);
+  await sb.from('booking_requests').update({status:remarks?'accepted_with_remarks':'accepted',owner_remarks:remarks||null,updated_at:new Date().toISOString()}).eq('id',id);
+  const msg=`Your meeting on ${req.requested_date} at ${ft(req.start_time)}–${ft(req.end_time)} has been ACCEPTED!${remarks?' Note from owner: '+remarks:''}`;
+  sendEmail(req.visitor_email,'Meeting Accepted ✅',req.visitor_name,msg);
+  loadReqCount();loadReqs();loadOSlots();loadOEventDates();loadStats();
+}
+function sendEmail(to,subject,name,msg){
+  fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({type:'email',to,subject,visitorName:name,html:`<div style="font-family:sans-serif;padding:24px;max-width:500px">
+      <h2 style="color:#6366f1">MyScheduler</h2><p>Hi <strong>${name}</strong>,</p><p>${msg}</p>
+      <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0"/>
+      <p style="color:#94a3b8;font-size:.85rem">MyScheduler — Automated notification</p></div>`})
+  }).catch(()=>{});
+}
+
+// ═══════════════════════════ OWNER TABS ════════════════════════════════════
+function oTab(t){
+  document.getElementById('o-sched').style.display=t==='schedule'?'block':'none';
+  document.getElementById('o-reqs').style.display=t==='requests'?'block':'none';
+  document.getElementById('otab-sched').classList.toggle('active',t==='schedule');
+  document.getElementById('otab-reqs').classList.toggle('active',t==='requests');
+  if(t==='requests') loadReqs();
+}
+
+// ═══════════════════════════ OWNER CHAT ════════════════════════════════════
+async function oSendChat(){
+  const inp=document.getElementById('o-chat-in');
+  const msg=inp.value.trim(); if(!msg)return;
+  inp.value='';
+  oAddMsg('u',msg);
+  oChatHist.push({role:'user',content:msg});
+  const typing=oAddMsg('a','⋯');
+
+  const today=fd(ist());
+  const {data:sched}=await sb.from('schedules').select('*').gte('date',today).order('date').order('start_time').limit(30);
+  const {data:reqs}=await sb.from('booking_requests').select('*').eq('status','pending');
+
+  const schedTxt=sched?.length?sched.map(s=>`[${s.date} ${(s.start_time||'').slice(0,5)}-${(s.end_time||'').slice(0,5)}] ${s.title} | ${s.category} | ${s.status} | id:${s.id}`).join('\n'):'No upcoming events';
+  const reqsTxt=reqs?.length?reqs.map(r=>`${r.visitor_name}(${r.visitor_email}): ${r.requested_date} ${(r.start_time||'').slice(0,5)}-${(r.end_time||'').slice(0,5)}`).join('\n'):'None';
+
+  const sys=`You are MyScheduler AI for the owner.
+IST now: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}
+Working hours: 5AM-11PM IST.
+
+SCHEDULE (upcoming):
+${schedTxt}
+
+PENDING REQUESTS:
+${reqsTxt}
+
+RULES:
+- Answer schedule questions from above data
+- For write actions (book/cancel/reschedule): ask user to confirm first
+- After confirmation, append action tag:
+  [ACTION:book|date:YYYY-MM-DD|start:HH:MM|end:HH:MM|title:TITLE|category:Meeting|desc:DESCRIPTION]
+  [ACTION:cancel|id:UUID]
+  [ACTION:reschedule|id:UUID|date:YYYY-MM-DD|start:HH:MM|end:HH:MM]
+- Reject bookings outside 5AM-11PM
+- All times in IST
+- Be concise and helpful`;
+
+  try{
+    const r=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:oChatHist.slice(-8),systemPrompt:sys})});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    const reply=d.response||'No response.';
+    typing.remove();
+    oAddMsg('a',reply.replace(/\[ACTION:[^\]]+\]/g,'').trim());
+    oChatHist.push({role:'assistant',content:reply});
+    const am=reply.match(/\[ACTION:([^\]]+)\]/);
+    if(am) await execAction(am[1]);
+  } catch(e){
+    typing.remove();
+    oAddMsg('a',`⚠ AI error: ${e.message}. Check that /api/gemini is deployed.`);
+    console.error('oChat:',e);
+  }
+}
+async function execAction(str){
+  const p={};
+  str.split('|').forEach(kv=>{const i=kv.indexOf(':');if(i>0)p[kv.slice(0,i)]=kv.slice(i+1);});
+  if(p.ACTION==='book'){
+    if(await overlap(p.date,p.start,p.end)){oAddMsg('a','⚠ Cannot book — overlaps existing slot!');return;}
+    await sb.from('schedules').insert([{category:p.category||'Meeting',title:p.title,date:p.date,start_time:p.start,end_time:p.end,description:p.desc||'Added via AI',status:'upcoming',created_by:'owner'}]);
+    oAddMsg('a','✅ Slot booked!'); loadOSlots();loadOEventDates();loadStats();
+  } else if(p.ACTION==='cancel'){
+    await sb.from('schedules').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',p.id);
+    oAddMsg('a','✅ Slot cancelled.'); loadOSlots();loadStats();loadOEventDates();
+  } else if(p.ACTION==='reschedule'){
+    if(await overlap(p.date,p.start,p.end,p.id)){oAddMsg('a','⚠ Cannot reschedule — overlaps!');return;}
+    await sb.from('schedules').update({date:p.date,start_time:p.start,end_time:p.end,status:'rescheduled',updated_at:new Date().toISOString()}).eq('id',p.id);
+    oAddMsg('a','✅ Rescheduled!'); loadOSlots();loadStats();loadOEventDates();
+  }
+}
+function oAddMsg(role,text){
+  const c=document.getElementById('o-chat-msgs');
+  const div=document.createElement('div'); div.className=`msg-${role}`;
+  div.innerHTML=`<div class="bub">${String(text).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div>`;
+  c.appendChild(div); c.scrollTop=c.scrollHeight; return div;
+}
+
+// ═══════════════════════════ COPY LINK ═════════════════════════════════════
+function copyBookingLink(){
+  navigator.clipboard.writeText(window.location.origin+'/').then(()=>{
+    const el=document.getElementById('copy-ok'); el.style.display='inline';
+    setTimeout(()=>el.style.display='none',2000);
+  });
+}
+</script>
+</body>
+</html>
