@@ -375,7 +375,8 @@ body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f1f5f9;min-heig
 const SB_URL = 'https://gyznhncbwoopkzxzhwpt.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5em5obmNid29vcGt6eHpod3B0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NzQ2MjAsImV4cCI6MjA5NzE1MDYyMH0.rDCBabevIA_WzAOnj03wzpUsjO73IEc8vc9GAyQX-V4';
 const PASS   = 'Usharama@7505';
-const PROXY  = '/api/gemini';
+const GEMINI_KEY = 'AQ.Ab8RN6JRbDf0MTqiMdH6Q1jLWogSif-4HT6ANLDSWzchzZqB_g';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
 const sb     = supabase.createClient(SB_URL, SB_KEY);
 
 // ═══════════════════════════ STATE ═════════════════════════════════════════
@@ -649,18 +650,26 @@ RULES:
 6. All times in IST`;
 
   try{
-    const r=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({messages:vChatHist.slice(-8),systemPrompt:sys})});
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const baseMsg = [{role:'user',parts:[{text:'[Instructions]\n'+sys+'\n[/Instructions]\nUnderstood?'}]},{role:'model',parts:[{text:'Understood, I will follow these instructions.'}]}];
+    const gemMsgs = [...baseMsg, ...vChatHist.slice(-8).map(m=>({
+      role: m.role==='assistant'?'model':'user',
+      parts:[{text:String(m.content||'')}]
+    }))];
+    const r=await fetch(GEMINI_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        contents:gemMsgs,
+        generationConfig:{maxOutputTokens:800,temperature:0.7}
+      })});
+    if(!r.ok){const t=await r.text();throw new Error(`Gemini ${r.status}: ${t.slice(0,100)}`);}
     const d=await r.json();
-    if(d.error) throw new Error(d.error);
+    if(d.error) throw new Error(d.error.message);
+    const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
     typing.remove();
-    const reply=d.response||'No response.';
     vAddMsg('a',reply);
     vChatHist.push({role:'assistant',content:reply});
   } catch(e){
     typing.remove();
-    vAddMsg('a',`⚠ Could not connect to AI. (${e.message})`);
+    vAddMsg('a',`⚠ AI error: ${e.message}`);
     console.error('vChat error:',e);
   }
 }
@@ -906,12 +915,8 @@ async function acceptReq(id,req,remarks){
   loadReqCount();loadReqs();loadOSlots();loadOEventDates();loadStats();
 }
 function sendEmail(to,subject,name,msg){
-  fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({type:'email',to,subject,visitorName:name,html:`<div style="font-family:sans-serif;padding:24px;max-width:500px">
-      <h2 style="color:#6366f1">MyScheduler</h2><p>Hi <strong>${name}</strong>,</p><p>${msg}</p>
-      <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0"/>
-      <p style="color:#94a3b8;font-size:.85rem">MyScheduler — Automated notification</p></div>`})
-  }).catch(()=>{});
+  // Email: integrate Resend here with API key when ready
+  console.log('Email to:', to, '|', subject, '|', msg.slice(0,80));
 }
 
 // ═══════════════════════════ OWNER TABS ════════════════════════════════════
@@ -961,12 +966,20 @@ RULES:
 - Be concise and helpful`;
 
   try{
-    const r=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({messages:oChatHist.slice(-8),systemPrompt:sys})});
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const oBaseMsg = [{role:'user',parts:[{text:'[Instructions]\n'+sys+'\n[/Instructions]\nUnderstood?'}]},{role:'model',parts:[{text:'Understood, I will follow these instructions.'}]}];
+    const gemMsgs = [...oBaseMsg, ...oChatHist.slice(-8).map(m=>({
+      role: m.role==='assistant'?'model':'user',
+      parts:[{text:String(m.content||'')}]
+    }))];
+    const r=await fetch(GEMINI_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        contents:gemMsgs,
+        generationConfig:{maxOutputTokens:1024,temperature:0.7}
+      })});
+    if(!r.ok){const t=await r.text();throw new Error(`Gemini ${r.status}: ${t.slice(0,100)}`);}
     const d=await r.json();
-    if(d.error) throw new Error(d.error);
-    const reply=d.response||'No response.';
+    if(d.error) throw new Error(d.error.message);
+    const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
     typing.remove();
     oAddMsg('a',reply.replace(/\[ACTION:[^\]]+\]/g,'').trim());
     oChatHist.push({role:'assistant',content:reply});
@@ -974,7 +987,7 @@ RULES:
     if(am) await execAction(am[1]);
   } catch(e){
     typing.remove();
-    oAddMsg('a',`⚠ AI error: ${e.message}. Check that /api/gemini is deployed.`);
+    oAddMsg('a',`⚠ AI error: ${e.message}`);
     console.error('oChat:',e);
   }
 }
