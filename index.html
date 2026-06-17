@@ -629,50 +629,42 @@ async function vSendChat(){
   vChatHist.push({role:'user',content:msg});
   const typing=vAddMsg('a','⋯');
 
-  let schedInfo='No data loaded';
+  let schedInfo='No data';
   if(vSelDate){
     const {data}=await sb.from('schedules').select('start_time,end_time').eq('date',vSelDate).neq('status','cancelled');
     schedInfo=data?.length?data.map(s=>`Booked: ${s.start_time.slice(0,5)}-${s.end_time.slice(0,5)}`).join(', '):'Fully available';
   }
 
-  const sys=`You are a scheduling assistant for a visitor wanting to book time with the owner.
-Current IST date/time: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}
-Selected date: ${vSelDate||'none'}
-Schedule for selected date: ${schedInfo}
-Working hours: 5:00 AM – 11:00 PM IST.
+  const sysPrompt = `You are a scheduling assistant helping a visitor book time with the owner.
+IST now: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}
+Selected date: ${vSelDate||'none'}. Schedule: ${schedInfo}
+Working hours 5AM-11PM IST. NEVER reveal meeting titles or visitor names. Just say Booked or Available.`;
 
-RULES:
-1. NEVER reveal meeting titles, descriptions, or visitor names from bookings
-2. Booked slots: only say "Booked" — no details
-3. Help visitor understand availability
-4. If visitor wants to book: tell them to click an available slot on the timeline
-5. Be helpful and friendly
-6. All times in IST`;
+  const msgs = [
+    {role:'user', parts:[{text: sysPrompt + '
+
+Acknowledge.'}]},
+    {role:'model', parts:[{text:'Understood. I will help visitors check availability.'}]},
+    ...vChatHist.slice(-6).map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]}))
+  ];
 
   try{
-    const baseMsg = [{role:'user',parts:[{text:'[Instructions]\n'+sys+'\n[/Instructions]\nUnderstood?'}]},{role:'model',parts:[{text:'Understood, I will follow these instructions.'}]}];
-    const gemMsgs = [...baseMsg, ...vChatHist.slice(-8).map(m=>({
-      role: m.role==='assistant'?'model':'user',
-      parts:[{text:String(m.content||'')}]
-    }))];
-    const r=await fetch(GEMINI_URL,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:gemMsgs,
-        generationConfig:{maxOutputTokens:800,temperature:0.7}
-      })});
-    if(!r.ok){const t=await r.text();throw new Error(`Gemini ${r.status}: ${t.slice(0,100)}`);}
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {method:'POST',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({contents:msgs,generationConfig:{maxOutputTokens:600,temperature:0.7}})});
     const d=await r.json();
     if(d.error) throw new Error(d.error.message);
     const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
     typing.remove();
     vAddMsg('a',reply);
     vChatHist.push({role:'assistant',content:reply});
-  } catch(e){
+  }catch(e){
     typing.remove();
-    vAddMsg('a',`⚠ AI error: ${e.message}`);
-    console.error('vChat error:',e);
+    vAddMsg('a','⚠ AI error: '+e.message);
+    console.error('vChat:',e);
   }
 }
+
 function vAddMsg(role,text){
   const c=document.getElementById('v-chat-msgs');
   const div=document.createElement('div'); div.className=`msg-${role}`;
@@ -938,45 +930,38 @@ async function oSendChat(){
   const typing=oAddMsg('a','⋯');
 
   const today=fd(ist());
-  const {data:sched}=await sb.from('schedules').select('*').gte('date',today).order('date').order('start_time').limit(30);
+  const {data:sched}=await sb.from('schedules').select('*').gte('date',today).order('date').order('start_time').limit(20);
   const {data:reqs}=await sb.from('booking_requests').select('*').eq('status','pending');
 
-  const schedTxt=sched?.length?sched.map(s=>`[${s.date} ${(s.start_time||'').slice(0,5)}-${(s.end_time||'').slice(0,5)}] ${s.title} | ${s.category} | ${s.status} | id:${s.id}`).join('\n'):'No upcoming events';
-  const reqsTxt=reqs?.length?reqs.map(r=>`${r.visitor_name}(${r.visitor_email}): ${r.requested_date} ${(r.start_time||'').slice(0,5)}-${(r.end_time||'').slice(0,5)}`).join('\n'):'None';
+  const schedTxt=sched?.length?sched.map(s=>`[${s.date} ${(s.start_time||'').slice(0,5)}-${(s.end_time||'').slice(0,5)}] ${s.title} (${s.status}) id:${s.id}`).join('
+'):'No upcoming events';
+  const reqsTxt=reqs?.length?reqs.map(r=>`${r.visitor_name}: ${r.requested_date} ${(r.start_time||'').slice(0,5)}-${(r.end_time||'').slice(0,5)}`).join('
+'):'None';
 
-  const sys=`You are MyScheduler AI for the owner.
-IST now: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}
-Working hours: 5AM-11PM IST.
-
-SCHEDULE (upcoming):
+  const sysPrompt = `You are MyScheduler AI for the owner managing their schedule.
+IST now: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}. Working hours: 5AM-11PM IST.
+UPCOMING SCHEDULE:
 ${schedTxt}
-
 PENDING REQUESTS:
 ${reqsTxt}
+For write actions ask confirmation first. After confirmation use:
+[ACTION:book|date:YYYY-MM-DD|start:HH:MM|end:HH:MM|title:TITLE|category:Meeting|desc:DESC]
+[ACTION:cancel|id:UUID]
+[ACTION:reschedule|id:UUID|date:YYYY-MM-DD|start:HH:MM|end:HH:MM]
+All times in IST. Be concise.`;
 
-RULES:
-- Answer schedule questions from above data
-- For write actions (book/cancel/reschedule): ask user to confirm first
-- After confirmation, append action tag:
-  [ACTION:book|date:YYYY-MM-DD|start:HH:MM|end:HH:MM|title:TITLE|category:Meeting|desc:DESCRIPTION]
-  [ACTION:cancel|id:UUID]
-  [ACTION:reschedule|id:UUID|date:YYYY-MM-DD|start:HH:MM|end:HH:MM]
-- Reject bookings outside 5AM-11PM
-- All times in IST
-- Be concise and helpful`;
+  const msgs = [
+    {role:'user', parts:[{text: sysPrompt + '
+
+Acknowledge.'}]},
+    {role:'model', parts:[{text:'Understood. I will help manage the schedule.'}]},
+    ...oChatHist.slice(-6).map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]}))
+  ];
 
   try{
-    const oBaseMsg = [{role:'user',parts:[{text:'[Instructions]\n'+sys+'\n[/Instructions]\nUnderstood?'}]},{role:'model',parts:[{text:'Understood, I will follow these instructions.'}]}];
-    const gemMsgs = [...oBaseMsg, ...oChatHist.slice(-8).map(m=>({
-      role: m.role==='assistant'?'model':'user',
-      parts:[{text:String(m.content||'')}]
-    }))];
-    const r=await fetch(GEMINI_URL,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:gemMsgs,
-        generationConfig:{maxOutputTokens:1024,temperature:0.7}
-      })});
-    if(!r.ok){const t=await r.text();throw new Error(`Gemini ${r.status}: ${t.slice(0,100)}`);}
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {method:'POST',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({contents:msgs,generationConfig:{maxOutputTokens:800,temperature:0.7}})});
     const d=await r.json();
     if(d.error) throw new Error(d.error.message);
     const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
@@ -985,12 +970,13 @@ RULES:
     oChatHist.push({role:'assistant',content:reply});
     const am=reply.match(/\[ACTION:([^\]]+)\]/);
     if(am) await execAction(am[1]);
-  } catch(e){
+  }catch(e){
     typing.remove();
-    oAddMsg('a',`⚠ AI error: ${e.message}`);
+    oAddMsg('a','⚠ AI error: '+e.message);
     console.error('oChat:',e);
   }
 }
+
 async function execAction(str){
   const p={};
   str.split('|').forEach(kv=>{const i=kv.indexOf(':');if(i>0)p[kv.slice(0,i)]=kv.slice(i+1);});
