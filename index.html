@@ -375,8 +375,8 @@ body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f1f5f9;min-heig
 const SB_URL = 'https://gyznhncbwoopkzxzhwpt.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5em5obmNid29vcGt6eHpod3B0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NzQ2MjAsImV4cCI6MjA5NzE1MDYyMH0.rDCBabevIA_WzAOnj03wzpUsjO73IEc8vc9GAyQX-V4';
 const PASS   = 'Usharama@7505';
-const GEMINI_KEY = 'AQ.Ab8RN6JRbDf0MTqiMdH6Q1jLWogSif-4HT6ANLDSWzchzZqB_g';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const PROXY_URL = '/api/gemini';
+const GEMINI_KEY = ''; // unused - via proxy
 const sb     = supabase.createClient(SB_URL, SB_KEY);
 
 // ═══════════════════════════ STATE ═════════════════════════════════════════
@@ -490,11 +490,12 @@ function renderVCal(){
   for(let d=1;d<=total;d++){
     const ds=`${vCalY}-${p2(vCalM+1)}-${p2(d)}`;
     const el=document.createElement('div'); el.className='cal-d'; el.textContent=d;
-    if(ds<today){el.classList.add('past');}
-    else{
+    if(ds<today){
+      el.classList.add('past');
+    } else {
+      el.onclick=()=>vSelectDate(ds);
       if(ds===today) el.classList.add('today');
       if(ds===vSelDate) el.classList.add('sel');
-      el.onclick=()=>vSelectDate(ds);
     }
     grid.appendChild(el);
   }
@@ -649,12 +650,11 @@ Acknowledge.'}]},
   ];
 
   try{
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {method:'POST',headers:{'Content-Type':'application/json'},
-       body:JSON.stringify({contents:msgs,generationConfig:{maxOutputTokens:600,temperature:0.7}})});
+    const r=await fetch(PROXY_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({messages:vChatHist.slice(-6),systemPrompt:sys})});
     const d=await r.json();
     if(d.error) throw new Error(d.error.message);
-    const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
+    const reply=d.response||'No response.';
     typing.remove();
     vAddMsg('a',reply);
     vChatHist.push({role:'assistant',content:reply});
@@ -959,12 +959,11 @@ Acknowledge.'}]},
   ];
 
   try{
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {method:'POST',headers:{'Content-Type':'application/json'},
-       body:JSON.stringify({contents:msgs,generationConfig:{maxOutputTokens:800,temperature:0.7}})});
+    const r=await fetch(PROXY_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({messages:oChatHist.slice(-6),systemPrompt:sys})});
     const d=await r.json();
     if(d.error) throw new Error(d.error.message);
-    const reply=d.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
+    const reply=d.response||'No response.';
     typing.remove();
     oAddMsg('a',reply.replace(/\[ACTION:[^\]]+\]/g,'').trim());
     oChatHist.push({role:'assistant',content:reply});
