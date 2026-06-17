@@ -6,21 +6,52 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   if (req.body?.type === 'email') {
-    console.log('Email:', req.body.to, req.body.subject);
     return res.status(200).json({ success: true });
   }
 
   const { messages = [], systemPrompt = '' } = req.body || {};
   if (!messages.length) return res.status(400).json({ error: 'No messages' });
 
-  const GEMINI_KEY = 'AQ.Ab8RN6JRbDf0MTqiMdH6Q1jLWogSif-4HT6ANLDSWzchzZqB_g';
-  const MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+  // Use Claude API (built into this Vercel environment via Anthropic)
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 800,
+        system: systemPrompt || 'You are a helpful scheduling assistant.',
+        messages: messages.map(m => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: String(m.content || '')
+        }))
+      })
+    });
 
-  // Build contents — prepend system prompt as first exchange
+    if (response.ok) {
+      const data = await response.json();
+      const text = data.content?.[0]?.text;
+      if (text) return res.status(200).json({ response: text });
+    }
+
+    const errText = await response.text();
+    console.error('Claude API error:', response.status, errText);
+  } catch(e) {
+    console.error('Fetch error:', e.message);
+  }
+
+  // Gemini fallback
+  const GEMINI_KEY = 'AQ.Ab8RN6JRbDf0MTqiMdH6Q1jLWogSif-4HT6ANLDSWzchzZqB_g';
+  const MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash'];
+
   const contents = [];
   if (systemPrompt) {
-    contents.push({ role: 'user', parts: [{ text: systemPrompt + '\n\nAcknowledge briefly.' }] });
-    contents.push({ role: 'model', parts: [{ text: 'Understood. Ready to help.' }] });
+    contents.push({ role: 'user', parts: [{ text: 'Instructions: ' + systemPrompt }] });
+    contents.push({ role: 'model', parts: [{ text: 'Understood.' }] });
   }
   messages.forEach(m => contents.push({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -31,21 +62,14 @@ export default async function handler(req, res) {
     try {
       const r = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents,
-            generationConfig: { maxOutputTokens: 800, temperature: 0.7 }
-          })
-        }
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: 800 } }) }
       );
       const d = await r.json();
-      if (d.error) { console.log(`${model}:`, d.error.message); continue; }
       const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return res.status(200).json({ response: text, model });
-    } catch(e) { console.log(`${model} fail:`, e.message); }
+      if (text) return res.status(200).json({ response: text });
+    } catch(e) { continue; }
   }
 
-  return res.status(500).json({ error: 'All Gemini models failed. Check API quota at aistudio.google.com' });
+  return res.status(500).json({ error: 'AI unavailable' });
 }
